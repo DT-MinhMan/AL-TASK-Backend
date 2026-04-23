@@ -28,10 +28,10 @@ export type RolePermissionDocument = RolePermission & Document;
 })
 export class RolePermission {
   @Prop({ type: Types.ObjectId, required: true, ref: 'Role' })
-  roleId: Types.ObjectId | Role;
+  roleId!: Types.ObjectId | Role;
 
   @Prop({ type: Types.ObjectId, required: true, ref: 'Permission' })
-  permissionId: Types.ObjectId | Permission;
+  permissionId!: Types.ObjectId | Permission;
 }
 
 export const RolePermissionSchema = SchemaFactory.createForClass(RolePermission);

@@ -7,7 +7,7 @@ export type UserDocument = User & Document;
 @Schema({ timestamps: true })
 export class User {
   @Prop({ required: true, unique: true })
-  email: string;
+  email!: string;
 
   @Prop()
   password?: string; // 👈 Không bắt buộc nếu đăng nhập bằng Google
@@ -16,13 +16,13 @@ export class User {
   googleId?: string; // 👈 Thêm Google ID (tùy chọn)
 
   @Prop({ default: 'user' })
-  role: string; // Các role: 'user', 'admin', 'staff', 'manager', 'technical'
+  role!: string; // Các role: 'user', 'admin', 'staff', 'manager', 'technical'
 
   @Prop({ type: Types.ObjectId, ref: 'Role' })
   roleId?: Types.ObjectId; // 👈 ID của vai trò tùy chỉnh
 
   @Prop({ default: 'active' })
-  status: string; // Trạng thái người dùng: 'active', 'offline', 'banned'
+  status!: string; // Trạng thái người dùng: 'active', 'offline', 'banned'
 
   @Prop()
   fullName?: string; // Tên đầy đủ (tùy chọn)
@@ -42,9 +42,9 @@ export class User {
   @Prop()
   gender?: string; // Giới tính (tùy chọn)
 
-  readonly _id: Types.ObjectId;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+  readonly _id!: Types.ObjectId;
+  readonly createdAt!: Date;
+  readonly updatedAt!: Date;
 
   // ✅ Getter để chuyển đổi _id thành id (chuỗi)
   get id(): string {

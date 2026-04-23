@@ -51,7 +51,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         role: payload.role
       };
     } catch (error) {
-      this.logger.error(`❌ JWT validation failed: ${error.message}`, error.stack);
+      const err = error as Error;
+      this.logger.error(`❌ JWT validation failed: ${err.message}`, err.stack);
       throw new UnauthorizedException('Invalid token');
     }
   }

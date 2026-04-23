@@ -6,28 +6,28 @@ export type WorkflowDocument = Workflow & Document;
 @Schema()
 export class WorkflowStatus {
   @Prop({ required: true })
-  id: string;
+  id!: string;
 
   @Prop({ required: true })
-  name: string;
+  name!: string;
 
   @Prop({ default: '#6b7280' })
-  color: string;
+  color!: string;
 
   @Prop({ type: String, enum: ['todo', 'inprogress', 'done'], default: 'todo' })
-  category: string;
+  nategory!: string;
 }
 
 @Schema()
 export class WorkflowTransition {
   @Prop({ required: true })
-  fromStatus: string;
+  fromStatus!: string;
 
   @Prop({ required: true })
-  toStatus: string;
+  toStatus!: string;
 
   @Prop({ required: true })
-  name: string;
+  name!: string;
 
   @Prop({ type: Object, default: null })
   conditions?: Record<string, any>;
@@ -36,23 +36,23 @@ export class WorkflowTransition {
 @Schema({ timestamps: true })
 export class Workflow {
   @Prop({ type: Types.ObjectId, ref: 'Project', required: true })
-  projectId: Types.ObjectId;
+  projectId!: Types.ObjectId;
 
   @Prop({ required: true })
-  name: string;
+  name!: string;
 
   @Prop({ required: true })
-  defaultStatus: string;
+  defaultStatus!: string;
 
   @Prop({ type: [SchemaFactory.createForClass(WorkflowStatus)], default: [] })
-  statuses: WorkflowStatus[];
+  statuses!: WorkflowStatus[];
 
   @Prop({ type: [SchemaFactory.createForClass(WorkflowTransition)], default: [] })
-  transitions: WorkflowTransition[];
+  transitions!: WorkflowTransition[];
 
-  readonly _id: Types.ObjectId;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+  readonly _id!: Types.ObjectId;
+  readonly createdAt!: Date;
+  readonly updatedAt!: Date;
 }
 
 export const WorkflowSchema = SchemaFactory.createForClass(Workflow);

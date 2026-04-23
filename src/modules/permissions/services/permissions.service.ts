@@ -123,7 +123,7 @@ export class PermissionsService {
     }
   }
 
-  async updateUserPermissions(updateDto: UpdateUserPermissionsDto): Promise<UserPermission[]> {
+  async updateUserPermissions(updateDto: UpdateUserPermissionsDto): Promise<UserPermissionDocument[]> {
     try {
       if (!updateDto.userId || !Array.isArray(updateDto.permissionIds)) {
         throw new Error('Invalid input: userId is required and permissionIds must be an array');
@@ -173,9 +173,10 @@ export class PermissionsService {
       console.log('Updated permissions:', updatedPermissions);
       return updatedPermissions;
     } catch (error) {
+      const err = error as Error;
       console.error('Error updating user permissions:', error);
-      if (error.message.includes('Invalid input') || error.message.includes('Invalid permission ID format')) {
-        throw new Error(`Bad Request: ${error.message}`);
+      if (err.message.includes('Invalid input') || err.message.includes('Invalid permission ID format')) {
+        throw new Error(`Bad Request: ${err.message}`);
       }
       throw error;
     }

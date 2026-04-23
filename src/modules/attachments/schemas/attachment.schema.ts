@@ -6,35 +6,35 @@ export type AttachmentDocument = Attachment & Document;
 @Schema({ timestamps: true })
 export class Attachment {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  uploadedBy: Types.ObjectId;
+  uploadedBy!: Types.ObjectId;
 
   @Prop({ required: true })
-  filename: string;
+  filename!: string;
 
   @Prop({ required: true })
-  originalName: string;
+  originalName!: string;
 
   @Prop({ required: true })
-  mimeType: string;
+  mimeType!: string;
 
   @Prop({ required: true })
-  size: number;
+  size!: number;
 
   @Prop({ required: true })
-  url: string;
+  url!: string;
 
   @Prop({ type: String, enum: ['task', 'page'], required: true })
-  targetType: string;
+  targetType!: string;
 
   @Prop({ required: true })
-  targetId: string;
+  targetId!: string;
 
   @Prop({ default: 0 })
-  downloadCount: number;
+  downloadCount!: number;
 
-  readonly _id: Types.ObjectId;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+  readonly _id!: Types.ObjectId;
+  readonly createdAt!: Date;
+  readonly updatedAt!: Date;
 }
 
 export const AttachmentSchema = SchemaFactory.createForClass(Attachment);

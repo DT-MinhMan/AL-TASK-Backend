@@ -208,7 +208,8 @@ export class PostsService {
     try {
       return await this.postsRepository.search(query.trim(), limit);
     } catch (error) {
-      this.logger.warn(`Text search failed, falling back to regex: ${error.message}`);
+      const err = error as Error;
+      this.logger.warn(`Text search failed, falling back to regex: ${err.message}`);
       const regexFilter: FilterPostDto = {
         search: query,
         status: 'published',

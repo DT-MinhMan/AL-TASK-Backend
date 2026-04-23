@@ -5,17 +5,17 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class BoardColumnDto {
   @ApiProperty()
   @IsString()
-  id: string;
+  id!: string;
 
   @ApiProperty()
   @IsString()
   @MaxLength(50)
-  name: string;
+  name!: string;
 
   @ApiProperty()
   @IsInt()
   @Min(0)
-  order: number;
+  order!: number;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -28,7 +28,7 @@ export class CreateBoardDto {
   @ApiProperty()
   @IsString()
   @MaxLength(100)
-  name: string;
+  name!: string;
 
   @ApiProperty({ type: [BoardColumnDto], default: [
     { id: 'todo', name: 'To Do', order: 0 },

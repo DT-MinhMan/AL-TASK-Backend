@@ -5,11 +5,11 @@ export class CreatePostDto {
   @ApiProperty({ example: 'How to Choose the Perfect Home' })
   @IsString()
   @MaxLength(255)
-  title: string;
+  title!: string;
 
   @ApiProperty({ example: '<p>Rich HTML content here...</p>', description: 'Rich text HTML content' })
   @IsString()
-  content: string;
+  content!: string;
 
   @ApiPropertyOptional({ example: 'A comprehensive guide to selecting your dream home...' })
   @IsOptional()

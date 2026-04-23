@@ -6,26 +6,26 @@ export type CommentDocument = Comment & Document;
 @Schema({ timestamps: true })
 export class Comment {
   @Prop({ required: true })
-  content: string;
+  content!: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  authorId: Types.ObjectId;
+  authorId!: Types.ObjectId;
 
   @Prop({ required: true, type: String, enum: ['task', 'page'] })
-  targetType: string;
+  targetType!: string;
 
   @Prop({ required: true })
-  targetId: string;
+  targetId!: string;
 
   @Prop({ type: Types.ObjectId, ref: 'Comment' })
   parentId?: Types.ObjectId;
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
-  mentions: Types.ObjectId[];
+  mentions!: Types.ObjectId[];
 
-  readonly _id: Types.ObjectId;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+  readonly _id!: Types.ObjectId;
+  readonly createdAt!: Date;
+  readonly updatedAt!: Date;
 }
 
 export const CommentSchema = SchemaFactory.createForClass(Comment);

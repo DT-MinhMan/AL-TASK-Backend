@@ -46,7 +46,8 @@ export class ProjectsService {
 
       return saved;
     } catch (error) {
-      if (error.code === 11000) {
+      if (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: number }).code === 11000
+      ){
         throw new ConflictException(`Project key '${uniqueKey}' already exists`);
       }
       throw error;

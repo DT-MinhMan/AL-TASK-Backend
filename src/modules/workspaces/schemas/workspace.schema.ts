@@ -6,26 +6,26 @@ export type WorkspaceDocument = Workspace & Document;
 @Schema({ timestamps: true })
 export class Workspace {
   @Prop({ required: true })
-  name: string;
+  name!: string;
 
   @Prop()
   description?: string;
 
   @Prop({ required: true })
-  slug: string;
+  slug!: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  ownerId: Types.ObjectId;
+  ownerId!: Types.ObjectId;
 
   @Prop({ type: [{ userId: { type: Types.ObjectId, ref: 'User' }, role: { type: String, enum: ['owner', 'admin', 'member', 'viewer'] } }], default: [] })
-  members: { userId: Types.ObjectId; role: string }[];
+  members!: { userId: Types.ObjectId; role: string }[];
 
   @Prop({ type: Object, default: {} })
-  settings: Record<string, any>;
+  settings!: Record<string, any>;
 
-  readonly _id: Types.ObjectId;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+  readonly _id!: Types.ObjectId;
+  readonly createdAt!: Date;
+  readonly updatedAt!: Date;
 }
 
 export const WorkspaceSchema = SchemaFactory.createForClass(Workspace);

@@ -9,10 +9,10 @@ import { Document, Types } from 'mongoose';
 @Schema({ timestamps: true })
 export class Auth extends Document {
   @Prop({ required: true, unique: true })
-  email: string;
+  email!: string;
 
   @Prop({ required: true })
-  password: string;
+  password!: string;
 
   /**
    * 🆕 **Role được lưu dưới dạng chuỗi**
@@ -24,7 +24,7 @@ export class Auth extends Document {
     enum: ['user', 'admin', 'staff', 'manager', 'technician'],
     default: 'user',
   })
-  role: string;
+  role!: string;
 
   /**
    * 🆕 **RoleId tham chiếu đến Role tùy chỉnh**
@@ -38,7 +38,7 @@ export class Auth extends Document {
    * Các giá trị mặc định: `"active"`, `"inactive"`, `"banned"`
    */
   @Prop({ type: String, default: 'active' })
-  status: string;
+  status!: string;
 
   @Prop()
   fullName?: string;

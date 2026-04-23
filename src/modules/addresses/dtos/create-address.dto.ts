@@ -5,16 +5,16 @@ export class CreateAddressDto {
   @ApiProperty()
   @IsString()
   @MaxLength(50)
-  label: string;
+  label!: string;
 
   @ApiProperty()
   @IsString()
   @MaxLength(100)
-  recipientName: string;
+  recipientName!: string;
 
   @ApiProperty()
   @IsString()
-  phone: string;
+  phone!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -23,7 +23,7 @@ export class CreateAddressDto {
 
   @ApiProperty()
   @IsString()
-  address: string;
+  address!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

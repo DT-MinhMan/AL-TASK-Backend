@@ -5,7 +5,7 @@ export class CreatePageDto {
   @ApiProperty({ example: 'Getting Started Guide' })
   @IsString()
   @MaxLength(255)
-  title: string;
+  title!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

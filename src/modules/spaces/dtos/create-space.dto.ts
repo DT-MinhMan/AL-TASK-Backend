@@ -5,12 +5,12 @@ export class CreateSpaceDto {
   @ApiProperty({ example: 'Development Docs' })
   @IsString()
   @MaxLength(100)
-  name: string;
+  name!: string;
 
   @ApiProperty({ example: 'DEV' })
   @IsString()
   @MaxLength(10)
-  key: string;
+  key!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

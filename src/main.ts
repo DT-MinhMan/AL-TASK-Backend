@@ -42,7 +42,7 @@ async function bootstrap() {
     await app.listen(PORT);
     console.log(`? Backend dang ch?y t?i: http://localhost:${PORT}`);
   } catch (error) {
-    console.error('? L?i kh?i d?ng ?ng d?ng:', error.message);
+    console.error('? L?i kh?i d?ng ?ng d?ng:', error);
     process.exit(1);
   }
 }

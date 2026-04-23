@@ -5,7 +5,7 @@ export class CreateAmenityDto {
   @ApiProperty()
   @IsString()
   @MaxLength(100)
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

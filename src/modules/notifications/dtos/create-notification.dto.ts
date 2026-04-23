@@ -4,15 +4,15 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateNotificationDto {
   @ApiProperty()
   @IsString()
-  userId: string;
+  userId!: string;
 
   @ApiProperty({ enum: ['task_assigned', 'task_updated', 'task_commented', 'task_mentioned', 'task_due', 'page_commented', 'page_mentioned', 'workspace_invite'] })
   @IsEnum(['task_assigned', 'task_updated', 'task_commented', 'task_mentioned', 'task_due', 'page_commented', 'page_mentioned', 'workspace_invite'])
-  type: string;
+  type!: string;
 
   @ApiProperty()
   @IsString()
-  title: string;
+  title!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

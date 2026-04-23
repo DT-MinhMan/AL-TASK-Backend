@@ -6,10 +6,10 @@ export type CategoryPostDocument = CategoryPost & Document;
 @Schema({ timestamps: true })
 export class CategoryPost {
   @Prop({ required: true })
-  name: string;
+  name!: string;
 
   @Prop({ required: true })
-  slug: string;
+  slug!: string;
 
   @Prop()
   description?: string;
@@ -21,10 +21,10 @@ export class CategoryPost {
   image?: string;
 
   @Prop({ default: 0 })
-  order: number;
+  order!: number;
 
   @Prop({ default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @Prop({ type: Types.ObjectId, ref: 'CategoryPost' })
   parentId?: Types.ObjectId;
@@ -32,11 +32,11 @@ export class CategoryPost {
   path?: string;
 
   @Prop({ default: 0 })
-  level: number;
+  level!: number;
 
-  readonly _id: Types.ObjectId;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+  readonly _id!: Types.ObjectId;
+  readonly createdAt!: Date;
+  readonly updatedAt!: Date;
 }
 
 export const CategoryPostSchema = SchemaFactory.createForClass(CategoryPost);

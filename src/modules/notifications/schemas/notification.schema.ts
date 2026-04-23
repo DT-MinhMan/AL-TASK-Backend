@@ -6,13 +6,13 @@ export type NotificationDocument = Notification & Document;
 @Schema({ timestamps: true })
 export class Notification {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId: Types.ObjectId;
+  userId!: Types.ObjectId;
 
   @Prop({ required: true, type: String, enum: ['task_assigned', 'task_updated', 'task_commented', 'task_mentioned', 'task_due', 'page_commented', 'page_mentioned', 'workspace_invite'] })
-  type: string;
+  type!: string;
 
   @Prop({ required: true })
-  title: string;
+  title!: string;
 
   @Prop()
   message?: string;
@@ -24,14 +24,14 @@ export class Notification {
   targetId?: string;
 
   @Prop({ default: false })
-  isRead: boolean;
+  isRead!: boolean;
 
   @Prop({ type: Object, default: null })
   metadata?: Record<string, any>;
 
-  readonly _id: Types.ObjectId;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+  readonly _id!: Types.ObjectId;
+  readonly createdAt!: Date;
+  readonly updatedAt!: Date;
 }
 
 export const NotificationSchema = SchemaFactory.createForClass(Notification);

@@ -6,10 +6,10 @@ export type AmenityDocument = Amenity & Document;
 @Schema({ timestamps: true })
 export class Amenity {
   @Prop({ required: true })
-  name: string;
+  name!: string;
 
   @Prop({ required: true })
-  slug: string;
+  slug!: string;
 
   @Prop()
   icon?: string;
@@ -18,14 +18,14 @@ export class Amenity {
   category?: string;
 
   @Prop({ default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @Prop({ default: 0 })
-  order: number;
+  order!: number;
 
-  readonly _id: any;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+  readonly _id!: any;
+  readonly createdAt!: Date;
+  readonly updatedAt!: Date;
 }
 
 export const AmenitySchema = SchemaFactory.createForClass(Amenity);

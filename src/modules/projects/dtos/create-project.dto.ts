@@ -5,12 +5,12 @@ import { Type } from 'class-transformer';
 class ProjectMemberDto {
   @ApiProperty()
   @IsString()
-  userId: string;
+  userId!: string;
 
   @ApiProperty({ enum: ['lead', 'admin', 'member', 'viewer'] })
   @IsString()
   @IsIn(['lead', 'admin', 'member', 'viewer'])
-  role: string;
+  role!: string;
 }
 
 export class CreateProjectDto {
@@ -18,13 +18,13 @@ export class CreateProjectDto {
   @IsString()
   @MinLength(2)
   @MaxLength(100)
-  name: string;
+  name!: string;
 
   @ApiProperty({ example: 'MP' })
   @IsString()
   @MinLength(2)
   @MaxLength(10)
-  key: string;
+  key!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -34,7 +34,7 @@ export class CreateProjectDto {
 
   @ApiProperty({ enum: ['scrum', 'kanban'], default: 'kanban' })
   @IsEnum(['scrum', 'kanban'])
-  type: string;
+  type!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -86,17 +86,17 @@ export class UpdateProjectDto {
 export class AddMemberDto {
   @ApiProperty()
   @IsString()
-  userId: string;
+  userId!: string;
 
   @ApiProperty({ enum: ['lead', 'admin', 'member', 'viewer'] })
   @IsString()
   @IsIn(['lead', 'admin', 'member', 'viewer'])
-  role: string;
+  role!: string;
 }
 
 export class UpdateMemberDto {
   @ApiProperty({ enum: ['lead', 'admin', 'member', 'viewer'] })
   @IsString()
   @IsIn(['lead', 'admin', 'member', 'viewer'])
-  role: string;
+  role!: string;
 }

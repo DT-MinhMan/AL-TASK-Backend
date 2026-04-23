@@ -6,28 +6,28 @@ export type TaskDocument = Task & Document;
 @Schema()
 export class TaskAttachment {
   @Prop()
-  id: string;
+  id!: string;
   
   @Prop()
-  name: string;
+  name!: string;
   
   @Prop()
-  url: string;
+  url!: string;
   
   @Prop()
-  size: number;
+  size!: number;
   
   @Prop()
-  mimeType: string;
+  mimeType!: string;
   
   @Prop({ default: () => new Date() })
-  uploadedAt: Date;
+  uploadedAt!: Date;
 }
 
 @Schema({ timestamps: true })
 export class Task {
   @Prop({ type: Types.ObjectId, ref: 'Project', required: true })
-  projectId: Types.ObjectId;
+  projectId!: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'Sprint' })
   sprintId?: Types.ObjectId;
@@ -39,34 +39,34 @@ export class Task {
   boardColumnId?: string;
 
   @Prop({ required: true })
-  key: string;
+  key!: string;
 
   @Prop({ required: true })
-  title: string;
+  title!: string;
 
   @Prop({ type: String, default: '' })
-  description: string;
+  description!: string;
 
   @Prop({ type: String, enum: ['task', 'bug', 'story', 'epic'], default: 'task' })
-  type: string;
+  type!: string;
 
   @Prop({ default: 'todo' })
-  status: string;
+  status!: string;
 
   @Prop({ type: String, enum: ['lowest', 'low', 'medium', 'high', 'highest'], default: 'medium' })
-  priority: string;
+  priority!: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
   assigneeId?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  reporterId: Types.ObjectId;
+  reporterId!: Types.ObjectId;
 
   @Prop({ type: [String], default: [] })
-  labels: string[];
+  labels!: string[];
 
   @Prop({ type: [SchemaFactory.createForClass(TaskAttachment)], default: [] })
-  attachments: TaskAttachment[];
+  attachments!: TaskAttachment[];
 
   @Prop()
   storyPoints?: number;
@@ -80,9 +80,9 @@ export class Task {
   @Prop({ type: Types.ObjectId, ref: 'Task' })
   epicId?: Types.ObjectId;
 
-  readonly _id: Types.ObjectId;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+  readonly _id!: Types.ObjectId;
+  readonly createdAt!: Date;
+  readonly updatedAt!: Date;
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task);

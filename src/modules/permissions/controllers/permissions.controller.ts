@@ -111,12 +111,13 @@ export class PermissionsController {
         })
       };
     } catch (error) {
+      const err = error as Error;
       console.error('Error updating user permissions:', error);
       // Return a more descriptive error response
       return {
         success: false,
-        message: error.message || 'Failed to update user permissions',
-        error: error.message
+        message: err.message || 'Failed to update user permissions',
+        error: err.message
       };
     }
   }

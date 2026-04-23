@@ -27,10 +27,10 @@ export type UserPermissionDocument = UserPermission & Document;
 })
 export class UserPermission {
   @Prop({ type: Types.ObjectId, required: true, ref: 'User' })
-  userId: Types.ObjectId;
+  userId!: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, required: true, ref: 'Permission' })
-  permissionId: Types.ObjectId | Permission;
+  permissionId!: Types.ObjectId | Permission;
 }
 
 export const UserPermissionSchema = SchemaFactory.createForClass(UserPermission);

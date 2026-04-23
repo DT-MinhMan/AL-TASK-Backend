@@ -26,7 +26,7 @@ const CONNECTION_TIMEOUT = 10000; // ⏱️ Thời gian chờ tối đa 10 giây
               await connection.asPromise(); // Đảm bảo kết nối MongoDB hoàn tất
               console.log('✅ Kết nối MongoDB thành công!');
             } catch (error) {
-              console.error('❌ Lỗi kết nối MongoDB:', error.message);
+              console.error('❌ Lỗi kết nối MongoDB:', error);
               process.exit(1);
             }
 
@@ -48,7 +48,7 @@ export class DatabaseModule implements OnModuleInit {
       await mongoose.connection.asPromise();
       console.log('🚀 MongoDB đã sẵn sàng, ứng dụng NestJS bắt đầu hoạt động!');
     } catch (error) {
-      console.error('❌ Kết nối MongoDB thất bại:', error.message);
+      console.error('❌ Kết nối MongoDB thất bại:', error);
       process.exit(1);
     }
   }

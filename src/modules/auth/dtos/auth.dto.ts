@@ -15,11 +15,11 @@ import {
 export class RegisterDto {
   @IsEmail({}, { message: 'Email không hợp lệ.' })
   @IsNotEmpty({ message: 'Email không được để trống.' })
-  email: string;
+  email!: string;
 
   @IsNotEmpty({ message: 'Mật khẩu không được để trống.' })
   @MinLength(6, { message: 'Mật khẩu phải có ít nhất 6 ký tự.' })
-  password: string;
+  password!: string;
 
   // 🆕 Role được lưu dưới dạng chuỗi với các giá trị tên cụ thể
   @IsOptional()
@@ -36,10 +36,10 @@ export class RegisterDto {
  */
 export class LoginDto {
   @IsEmail({}, { message: 'Email không hợp lệ.' })
-  email: string;
+  email!: string;
 
   @IsNotEmpty({ message: 'Mật khẩu không được để trống.' })
-  password: string;
+  password!: string;
 }
 
 /**
@@ -78,8 +78,8 @@ export class UpdateUserDto {
 
 export class VerifyEmailDto {
   @IsEmail({}, { message: 'Email không hợp lệ.' })
-  email: string;
+  email!: string;
 
   @IsNotEmpty({ message: 'Mã xác thực không được để trống.' })
-  code: string;
+  code!: string;
 }

@@ -7,13 +7,13 @@ export type TokenDocument = Token & Document;
 @Schema({ timestamps: true })
 export class Token {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId: Types.ObjectId; // Liên kết với bảng User
+  userId!: Types.ObjectId; // Liên kết với bảng User
 
   @Prop({ required: true })
-  email: string;
+  email!: string;
 
   @Prop({ required: true, unique: true })
-  token: string;
+  token!: string;
 
   @Prop({ default: 'Unknown' })
   deviceInfo?: string; // Lưu thông tin thiết bị (tùy chọn)

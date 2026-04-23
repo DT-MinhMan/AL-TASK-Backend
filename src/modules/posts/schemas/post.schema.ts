@@ -6,13 +6,13 @@ export type PostDocument = Post & Document;
 @Schema({ timestamps: true })
 export class Post {
   @Prop({ required: true })
-  title: string;
+  title!: string;
 
   @Prop({ required: true })
-  slug: string;
+  slug!: string;
 
   @Prop({ required: true })
-  content: string;
+  content!: string;
 
   @Prop()
   summary?: string;
@@ -21,34 +21,34 @@ export class Post {
   thumbnail?: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  authorId: Types.ObjectId;
+  authorId!: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'CategoryPost' })
   categoryId?: Types.ObjectId;
 
   @Prop({ type: [String], default: [] })
-  tags: string[];
+  tags!: string[];
 
   @Prop({ default: false })
-  featured: boolean;
+  featured!: boolean;
 
   @Prop({ default: false })
-  pinned: boolean;
+  pinned!: boolean;
 
   @Prop({ type: String, enum: ['draft', 'pending', 'published', 'rejected'], default: 'draft' })
-  status: string;
+  status!: string;
 
   @Prop({ type: String, enum: ['public', 'private'], default: 'public' })
-  visibility: string;
+  visibility!: string;
 
   @Prop({ default: 0 })
-  viewCount: number;
+  viewCount!: number;
 
   @Prop({ default: 0 })
-  likeCount: number;
+  likeCount!: number;
 
   @Prop({ default: 0 })
-  shareCount: number;
+  shareCount!: number;
 
   @Prop()
   publishedAt?: Date;
@@ -56,9 +56,9 @@ export class Post {
   @Prop()
   scheduledAt?: Date;
 
-  readonly _id: Types.ObjectId;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+  readonly _id!: Types.ObjectId;
+  readonly createdAt!: Date;
+  readonly updatedAt!: Date;
 }
 
 export const PostSchema = SchemaFactory.createForClass(Post);

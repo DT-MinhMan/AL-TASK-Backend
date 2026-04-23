@@ -4,14 +4,14 @@ import { IsString, IsEmail, IsOptional, IsEnum, IsUrl, Matches, IsNotEmpty } fro
 export class CreateUsersDto {
   @IsNotEmpty()
   @IsEmail()
-  email: string;
+  email!: string;
 
   @IsNotEmpty()
   @IsString()
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\W]{8,}$/, {
     message: 'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và số',
   })
-  password: string;
+  password!: string;
 
   @IsOptional()
   @IsString()

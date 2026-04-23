@@ -78,7 +78,7 @@ export class CreatePropertyPostDto {
   @ApiProperty()
   @IsString()
   @MaxLength(255)
-  title: string;
+  title!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -92,15 +92,15 @@ export class CreatePropertyPostDto {
 
   @ApiProperty({ enum: ['apartment', 'house', 'villa', 'townhouse', 'land', 'commercial', 'office', 'warehouse'] })
   @IsEnum(['apartment', 'house', 'villa', 'townhouse', 'land', 'commercial', 'office', 'warehouse'])
-  propertyType: string;
+  propertyType!: string;
 
   @ApiProperty({ enum: ['sale', 'rent'] })
   @IsEnum(['sale', 'rent'])
-  listingType: string;
+  listingType!: string;
 
   @ApiProperty()
   @IsNumber()
-  price: number;
+  price!: number;
 
   @ApiPropertyOptional()
   @IsOptional()

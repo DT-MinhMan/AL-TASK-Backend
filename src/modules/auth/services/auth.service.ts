@@ -213,7 +213,8 @@ export class AuthService {
       this.logger.debug(`🔑 Token đã được tạo và lưu cho userId: ${userId}`);
       return token;
     } catch (error) {
-      this.logger.error(`❌ Error creating token: ${error.message}`, error.stack);
+      const err = error as Error;
+      this.logger.error(`❌ Error creating token: ${err.message}`, err.stack);
       throw new InternalServerErrorException('Cannot create authentication token');
     }
   }
@@ -414,10 +415,11 @@ export class AuthService {
         message: 'Đặt lại mật khẩu thành công',
       };
     } catch (error) {
-      if (error.name === 'JsonWebTokenError') {
+      const err = error as Error;
+      if (err.name === 'JsonWebTokenError') {
         throw new BadRequestException('Token không hợp lệ');
       }
-      if (error.name === 'TokenExpiredError') {
+      if (err.name === 'TokenExpiredError') {
         throw new BadRequestException('Token đã hết hạn');
       }
       throw error;
@@ -472,7 +474,8 @@ export class AuthService {
 
       return user;
     } catch (error) {
-      this.logger.error(`Error finding user by ID: ${error.message}`);
+      const err = error as Error;
+      this.logger.error(`Error finding user by ID: ${err.message}`);
       throw error;
     }
   }
@@ -500,7 +503,8 @@ export class AuthService {
 
       return await this.usersService.getUserById(userId);
     } catch (error) {
-      this.logger.error(`Error assigning custom role to user: ${error.message}`);
+      const err = error as Error;
+      this.logger.error(`Error assigning custom role to user: ${err.message}`);
       throw error;
     }
   }
@@ -527,7 +531,8 @@ export class AuthService {
 
       return await this.usersService.getUserById(userId);
     } catch (error) {
-      this.logger.error(`Error removing custom role from user: ${error.message}`);
+      const err = error as Error;
+      this.logger.error(`Error removing custom role from user: ${err.message}`);
       throw error;
     }
   }

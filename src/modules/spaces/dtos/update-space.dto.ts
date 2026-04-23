@@ -5,19 +5,19 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class SpaceMemberDto {
   @ApiProperty()
   @IsString()
-  userId: string;
+  userId!: string;
 
   @ApiProperty({ enum: ['admin', 'member'], default: 'member' })
   @IsEnum(['admin', 'member'])
-  role: string;
+  role!: string;
 }
 
 export class AddMemberDto {
   @ApiProperty({ description: 'User ID to add' })
   @IsString()
-  userId: string;
+  userId!: string;
 
   @ApiProperty({ enum: ['admin', 'member'], default: 'member' })
   @IsEnum(['admin', 'member'])
-  role: string;
+  role!: string;
 }

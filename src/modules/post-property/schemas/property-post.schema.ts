@@ -57,55 +57,55 @@ export class PropertyDetails {
 @Schema({ timestamps: true })
 export class PropertyPost {
   @Prop({ required: true })
-  title: string;
+  title!: string;
 
   @Prop({ required: true })
-  slug: string;
+  slug!: string;
 
   @Prop()
   content?: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  authorId: Types.ObjectId;
+  authorId!: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'CategoryPost' })
   categoryId?: Types.ObjectId;
 
   @Prop({ type: String, enum: ['apartment', 'house', 'villa', 'townhouse', 'land', 'commercial', 'office', 'warehouse'], default: 'house' })
-  propertyType: string;
+  propertyType!: string;
 
   @Prop({ type: String, enum: ['sale', 'rent'], required: true })
-  listingType: string;
+  listingType!: string;
 
   @Prop({ required: true, default: 0 })
-  price: number;
+  price!: number;
 
   @Prop()
   priceUnit?: string;
 
   @Prop({ type: PropertyLocation })
-  location: PropertyLocation;
+  location!: PropertyLocation;
 
   @Prop({ type: PropertyDetails })
-  details: PropertyDetails;
+  details!: PropertyDetails;
 
   @Prop({ type: [{ url: String, caption: String }], default: [] })
-  images: { url: string; caption?: string }[];
+  images!: { url: string; caption?: string }[];
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Amenity' }], default: [] })
-  amenities: Types.ObjectId[];
+  amenities!: Types.ObjectId[];
 
   @Prop({ type: String, enum: ['draft', 'pending', 'approved', 'rejected'], default: 'pending' })
-  status: string;
+  status!: string;
 
   @Prop({ default: 0 })
-  viewCount: number;
+  viewCount!: number;
 
   @Prop({ type: String, enum: ['available', 'sold', 'rented', 'pending'], default: 'available' })
-  propertyStatus: string;
+  propertyStatus!: string;
 
   @Prop({ type: String, enum: ['public', 'private'], default: 'public' })
-  visibility: string;
+  visibility!: string;
 
   @Prop({ type: String })
   contactName?: string;
@@ -119,9 +119,9 @@ export class PropertyPost {
   @Prop()
   publishedAt?: Date;
 
-  readonly _id: Types.ObjectId;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+  readonly _id!: Types.ObjectId;
+  readonly createdAt!: Date;
+  readonly updatedAt!: Date;
 }
 
 export const PropertyPostSchema = SchemaFactory.createForClass(PropertyPost);

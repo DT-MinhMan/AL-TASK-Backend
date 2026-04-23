@@ -79,9 +79,10 @@ export class AuthController {
       this.logger.log(`✅ Đăng ký thành công cho email: ${registerDto.email}`);
       return result;
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `❌ Lỗi khi đăng ký người dùng: ${error.message}`,
-        error.stack,
+        `❌ Lỗi khi đăng ký người dùng: ${err.message}`,
+        err.stack,
       );
       throw error;
     }
@@ -142,8 +143,9 @@ export class AuthController {
       this.logger.log(`✅ Lấy thông tin thành công cho ID: ${userId}`);
       return result;
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `❌ Lỗi khi lấy thông tin người dùng: ${error.message}`,
+        `❌ Lỗi khi lấy thông tin người dùng: ${err.message}`,
       );
       throw error;
     }
@@ -188,9 +190,10 @@ export class AuthController {
         isAdmin: role === 'admin'
       };
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `❌ Lỗi khi lấy quyền người dùng: ${error.message}`,
-        error.stack
+        `❌ Lỗi khi lấy quyền người dùng: ${err.message}`,
+        err.stack
       );
       throw error;
     }

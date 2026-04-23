@@ -5,12 +5,12 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class WorkflowStatusDto {
   @ApiProperty()
   @IsString()
-  id: string;
+  id!: string;
 
   @ApiProperty()
   @IsString()
   @MaxLength(50)
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -26,16 +26,16 @@ export class WorkflowStatusDto {
 export class WorkflowTransitionDto {
   @ApiProperty()
   @IsString()
-  fromStatus: string;
+  fromStatus!: string;
 
   @ApiProperty()
   @IsString()
-  toStatus: string;
+  toStatus!: string;
 
   @ApiProperty()
   @IsString()
   @MaxLength(100)
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -46,17 +46,17 @@ export class CreateWorkflowDto {
   @ApiProperty()
   @IsString()
   @MaxLength(100)
-  name: string;
+  name!: string;
 
   @ApiProperty()
   @IsString()
-  defaultStatus: string;
+  defaultStatus!: string;
 
   @ApiProperty({ type: [WorkflowStatusDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => WorkflowStatusDto)
-  statuses: WorkflowStatusDto[];
+  statuses!: WorkflowStatusDto[];
 
   @ApiPropertyOptional({ type: [WorkflowTransitionDto] })
   @IsOptional()

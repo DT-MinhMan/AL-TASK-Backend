@@ -7,24 +7,24 @@ export enum VerifyType {
 
 export class SendVerifyDto {
   @IsEmail()
-  email: string;
+  email!: string;
 
   @IsEnum(VerifyType)
-  type: VerifyType;
+  type!: VerifyType;
 }
 
 export class CheckVerifyDto {
   @IsEmail()
-  email: string;
+  email!: string;
 
   @IsString()
-  code: string;
+  code!: string;
 
   @IsEnum(VerifyType)
-  type: VerifyType;
+  type!: VerifyType;
 }
 
 export class ConfirmVerifyDto {
   @IsString()
-  token: string;
+  token!: string;
 }

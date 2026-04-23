@@ -39,7 +39,8 @@ export class TokenService {
       this.logger.log(`✅ Token được lưu thành công vào database: ${token}`);
       return token;
     } catch (error) {
-      this.logger.error(`❌ Lỗi khi tạo token: ${error.message}`, error.stack);
+      const err = error as Error;
+      this.logger.error(`❌ Lỗi khi tạo token: ${err.message}`, err.stack);
       throw new InternalServerErrorException('Không thể tạo token.');
     }
   }
@@ -51,7 +52,8 @@ export class TokenService {
       await this.tokenModel.updateOne({ token }, { status: false });
       this.logger.log(`✅ Token đã được hủy: ${token}`);
     } catch (error) {
-      this.logger.error(`❌ Lỗi khi hủy token: ${error.message}`, error.stack);
+      const err = error as Error;
+      this.logger.error(`❌ Lỗi khi hủy token: ${err.message}`, err.stack);
       throw new InternalServerErrorException('Không thể hủy token.');
     }
   }
@@ -62,7 +64,8 @@ export class TokenService {
     try {
       return await this.tokenModel.findOne({ token, status: true }).exec();
     } catch (error) {
-      this.logger.error(`❌ Lỗi khi tìm token: ${error.message}`, error.stack);
+      const err = error as Error;
+      this.logger.error(`❌ Lỗi khi tìm token: ${err.message}`, err.stack);
       throw new InternalServerErrorException('Không thể tìm thấy token.');
     }
   }
@@ -74,9 +77,10 @@ export class TokenService {
       await this.tokenModel.updateMany({ userId }, { status: false });
       this.logger.log(`✅ Tất cả token của userId ${userId} đã bị hủy`);
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `❌ Lỗi khi hủy tất cả token của userId ${userId}: ${error.message}`,
-        error.stack,
+        `❌ Lỗi khi hủy tất cả token của userId ${userId}: ${err.message}`,
+        err.stack,
       );
       throw new InternalServerErrorException(
         'Không thể hủy tất cả token của người dùng.',

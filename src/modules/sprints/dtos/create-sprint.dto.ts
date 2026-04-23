@@ -5,7 +5,7 @@ export class CreateSprintDto {
   @ApiProperty({ example: 'Sprint 1' })
   @IsString()
   @MaxLength(100)
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ example: 'Complete user authentication module' })
   @IsOptional()
@@ -15,11 +15,11 @@ export class CreateSprintDto {
 
   @ApiProperty({ example: '2026-04-01' })
   @IsDateString()
-  startDate: string;
+  startDate!: string;
 
   @ApiProperty({ example: '2026-04-14' })
   @IsDateString()
-  endDate: string;
+  endDate!: string;
 }
 
 export class UpdateSprintDto {

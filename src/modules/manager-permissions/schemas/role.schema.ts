@@ -15,10 +15,10 @@ export type RoleDocument = Role & Document;
 })
 export class Role {
   @Prop({ required: true, unique: true })
-  name: string;
+  name!: string;
 
   @Prop()
-  description: string;
+  description!: string;
 }
 
 export const RoleSchema = SchemaFactory.createForClass(Role);

@@ -4,15 +4,15 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateCommentDto {
   @ApiProperty()
   @IsString()
-  content: string;
+  content!: string;
 
   @ApiProperty({ enum: ['task', 'page'] })
   @IsEnum(['task', 'page'])
-  targetType: string;
+  targetType!: string;
 
   @ApiProperty()
   @IsString()
-  targetId: string;
+  targetId!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

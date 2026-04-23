@@ -4,14 +4,14 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class BoardColumnDto {
   @IsString()
-  id: string;
+  id!: string;
 
   @IsString()
   @MaxLength(50)
-  name: string;
+  name!: string;
 
   @IsInt()
-  order: number;
+  order!: number;
 
   @IsOptional()
   @IsInt()

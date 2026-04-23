@@ -6,26 +6,26 @@ export type SprintDocument = Sprint & Document;
 @Schema({ timestamps: true })
 export class Sprint {
   @Prop({ type: Types.ObjectId, ref: 'Project', required: true })
-  projectId: Types.ObjectId;
+  projectId!: Types.ObjectId;
 
   @Prop({ required: true })
-  name: string;
+  name!: string;
 
   @Prop()
   goal?: string;
 
   @Prop({ required: true })
-  startDate: Date;
+  startDate!: Date;
 
   @Prop({ required: true })
-  endDate: Date;
+  endDate!: Date;
 
   @Prop({ type: String, enum: ['planning', 'active', 'completed'], default: 'planning' })
-  status: string;
+  status!: string;
 
-  readonly _id: Types.ObjectId;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+  readonly _id!: Types.ObjectId;
+  readonly createdAt!: Date;
+  readonly updatedAt!: Date;
 }
 
 export const SprintSchema = SchemaFactory.createForClass(Sprint);

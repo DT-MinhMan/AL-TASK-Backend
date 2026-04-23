@@ -6,22 +6,22 @@ export type AddressDocument = Address & Document;
 @Schema({ timestamps: true })
 export class Address {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId: Types.ObjectId;
+  userId!: Types.ObjectId;
 
   @Prop({ required: true })
-  label: string;
+  label!: string;
 
   @Prop({ required: true })
-  recipientName: string;
+  recipientName!: string;
 
   @Prop({ required: true })
-  phone: string;
+  phone!: string;
 
   @Prop()
   email?: string;
 
   @Prop({ required: true })
-  address: string;
+  address!: string;
 
   @Prop()
   ward?: string;
@@ -36,11 +36,11 @@ export class Address {
   postalCode?: string;
 
   @Prop({ default: false })
-  isDefault: boolean;
+  isDefault!: boolean;
 
-  readonly _id: Types.ObjectId;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+  readonly _id!: Types.ObjectId;
+  readonly createdAt!: Date;
+  readonly updatedAt!: Date;
 }
 
 export const AddressSchema = SchemaFactory.createForClass(Address);

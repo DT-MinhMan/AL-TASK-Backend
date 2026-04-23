@@ -5,7 +5,7 @@ export class CreateTaskDto {
   @ApiProperty({ example: 'Implement login feature' })
   @IsString()
   @MaxLength(255)
-  title: string;
+  title!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -14,7 +14,7 @@ export class CreateTaskDto {
 
   @ApiProperty({ example: 'task' })
   @IsEnum(['task', 'bug', 'story', 'epic'])
-  type: string;
+  type!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

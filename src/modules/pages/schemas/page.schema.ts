@@ -6,37 +6,37 @@ export type PageDocument = Page & Document;
 @Schema({ timestamps: true })
 export class Page {
   @Prop({ type: Types.ObjectId, ref: 'Space', required: true })
-  spaceId: Types.ObjectId;
+  spaceId!: Types.ObjectId;
 
   @Prop({ required: true })
-  title: string;
+  title!: string;
 
   @Prop({ type: String, default: '' })
-  content: string;
+  content!: string;
 
   @Prop({ type: Types.ObjectId, ref: 'Page' })
   parentId?: Types.ObjectId;
 
   @Prop({ required: true })
-  slug: string;
+  slug!: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  authorId: Types.ObjectId;
+  authorId!: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
   lastEditedBy?: Types.ObjectId;
 
   @Prop({ default: 1 })
-  version: number;
+  version!: number;
 
   @Prop({ type: String, enum: ['draft', 'published'], default: 'draft' })
-  status: string;
+  status!: string;
 
   @Prop({ type: [String], default: [] })
-  labels: string[];
+  labels!: string[];
 
   @Prop({ type: Number, default: 0 })
-  viewCount: number;
+  viewCount!: number;
 
   @Prop({
     type: [
@@ -48,11 +48,11 @@ export class Page {
     ],
     default: [],
   })
-  versionHistory: { editedBy: Types.ObjectId; editedAt: Date; changes: string }[];
+  versionHistory!: { editedBy: Types.ObjectId; editedAt: Date; changes: string }[];
 
-  readonly _id: Types.ObjectId;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+  readonly _id!: Types.ObjectId;
+  readonly createdAt!: Date;
+  readonly updatedAt!: Date;
 }
 
 export const PageSchema = SchemaFactory.createForClass(Page);

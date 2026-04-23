@@ -1,0 +1,85 @@
+// users.service.ts
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { UsersRepository } from '../repositories/users.repository';
+import { User } from '../schemas/users.schema';
+import { CreateUsersDto } from '../dtos/create-users.dto';
+import { UpdateUsersDto } from '../dtos/update-users.dto';
+import * as bcrypt from 'bcrypt';
+
+@Injectable()
+export class UsersService {
+  constructor(private readonly usersRepository: UsersRepository) { }
+
+  // 📢 Lấy thông tin người dùng theo ID
+  async getUserById(id: string): Promise<User> {
+    console.log('🔍 ID được truyền vào:', id);
+    const user = await this.usersRepository.findById(id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
+  // 📢 Tìm người dùng bằng email
+  async findByEmail(email: string): Promise<User | null> {
+    return await this.usersRepository.findByEmail(email);
+  }
+
+  // 📢 Tạo người dùng mới
+  async createUser(userData: CreateUsersDto): Promise<User> {
+    // Hash mật khẩu nếu có
+    if (userData.password) {
+      const salt = await bcrypt.genSalt();
+      userData.password = await bcrypt.hash(userData.password, salt);
+    }
+
+    return await this.usersRepository.create(userData);
+  }
+
+  // 📢 Cập nhật thông tin người dùng
+  async updateUser(userId: string, updateData: UpdateUsersDto | { $unset: { [key: string]: any } }, isPasswordHashed: boolean = false): Promise<User> {
+    // Only hash password if updateData is UpdateUsersDto and has password field
+    if ('password' in updateData && !isPasswordHashed) {
+      const salt = await bcrypt.genSalt();
+      (updateData as UpdateUsersDto).password = await bcrypt.hash((updateData as UpdateUsersDto).password!, salt);
+    }
+
+    const updatedUser = await this.usersRepository.update(userId, updateData);
+    if (!updatedUser) {
+      throw new NotFoundException('User not found');
+    }
+    return updatedUser;
+  }
+
+  // 📢 Lấy danh sách tất cả người dùng
+  async getAllUsers(): Promise<User[]> {
+    return await this.usersRepository.findAll();
+  }
+
+  // 📢 Xóa người dùng bằng ID
+  async deleteUser(userId: string): Promise<{ message: string }> {
+    const deletedUser = await this.usersRepository.delete(userId);
+    if (!deletedUser) {
+      throw new NotFoundException('User not found');
+    }
+    return { message: 'User deleted successfully' };
+  }
+
+  /**
+   * 🔄 Cập nhật mật khẩu cho người dùng
+   */
+  async updatePassword(email: string, newPassword: string) {
+    const user = await this.usersRepository.findByEmail(email);
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+
+    user.password = newPassword;
+    await this.usersRepository.update(user._id.toString(), user);
+
+    return {
+      success: true,
+      message: 'Cập nhật mật khẩu thành công',
+    };
+  }
+}

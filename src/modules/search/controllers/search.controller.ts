@@ -1,0 +1,72 @@
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { SearchService } from '../services/search.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+
+@ApiTags('Search')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('search')
+export class SearchController {
+  constructor(private readonly searchService: SearchService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Global search across tasks, projects, and pages' })
+  @ApiQuery({ name: 'q', required: true, description: 'Search query' })
+  @ApiQuery({ name: 'types', required: false, description: 'Comma-separated list of types to search (task,project,page)' })
+  @ApiQuery({ name: 'workspaceId', required: false, description: 'Filter by workspace ID' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Maximum results per type' })
+  async search(
+    @Query('q') query: string,
+    @Query('types') types?: string,
+    @Query('workspaceId') workspaceId?: string,
+    @Query('limit') limit?: string,
+  ) {
+    if (!query) {
+      return { tasks: [], projects: [], pages: [], total: 0 };
+    }
+
+    const options: any = {};
+
+    if (types) {
+      options.types = types.split(',').map((t) => t.trim());
+    }
+
+    if (workspaceId) {
+      options.workspaceId = workspaceId;
+    }
+
+    if (limit) {
+      options.limit = parseInt(limit, 10);
+    }
+
+    return this.searchService.search(query, options.workspaceId || '', options);
+  }
+
+  @Get('tasks')
+  @ApiOperation({ summary: 'Search tasks only' })
+  @ApiQuery({ name: 'q', required: true, description: 'Search query' })
+  @ApiQuery({ name: 'projectId', required: false, description: 'Filter by project ID' })
+  async searchTasks(@Query('q') query: string, @Query('projectId') projectId?: string) {
+    if (!query) {
+      return [];
+    }
+    return this.searchService.searchTasks(query, projectId || undefined);
+  }
+
+  @Get('projects')
+  @ApiOperation({ summary: 'Search projects only' })
+  @ApiQuery({ name: 'q', required: true, description: 'Search query' })
+  @ApiQuery({ name: 'workspaceId', required: false, description: 'Filter by workspace ID' })
+  async searchProjects(@Query('q') query: string, @Query('workspaceId') workspaceId?: string) {
+    return this.searchService.searchProjects(query, workspaceId);
+  }
+
+  @Get('pages')
+  @ApiOperation({ summary: 'Search pages only' })
+  @ApiQuery({ name: 'q', required: true, description: 'Search query' })
+  @ApiQuery({ name: 'spaceId', required: false, description: 'Filter by space ID' })
+  async searchPages(@Query('q') query: string, @Query('spaceId') spaceId?: string) {
+    return this.searchService.searchPages(query, spaceId);
+  }
+}

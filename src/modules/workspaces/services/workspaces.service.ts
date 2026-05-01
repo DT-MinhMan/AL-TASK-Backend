@@ -4,19 +4,25 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
+import { WorkflowsService } from '../../workflows/services/workflows.service';
 
 @Injectable()
 export class WorkspacesService {
   private readonly logger = new Logger(WorkspacesService.name);
 
-  constructor(private readonly workspacesRepository: WorkspacesRepository) {}
+  constructor(
+    private readonly workspacesRepository: WorkspacesRepository,
+    private readonly workflowsService: WorkflowsService,
+  ) {}
 
   async create(userId: string, dto: CreateWorkspaceDto): Promise<any> {
     const slug = dto.slug || (await this.generateUniqueSlug(dto.name));
+    const key = await this.generateUniqueKey(dto.key || dto.name);
 
     const existingSlug = await this.workspacesRepository.findBySlug(slug);
     if (existingSlug) {
@@ -27,14 +33,30 @@ export class WorkspacesService {
       name: dto.name,
       description: dto.description,
       slug,
+      key,
+      type: dto.type || 'kanban',
       ownerId: new Types.ObjectId(userId),
+      leadId: new Types.ObjectId(userId),
       members: [
         { userId: new Types.ObjectId(userId), role: 'owner' },
       ],
       settings: {},
+      status: 'active',
     });
 
     this.logger.log(`Workspace created: ${workspace._id} by user ${userId}`);
+
+    try {
+      await this.workflowsService.createDefaultWorkflow(workspace._id.toString());
+      this.logger.log(`Default workflow created for workspace ${workspace._id}`);
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        this.logger.warn(`Workflow already exists for workspace ${workspace._id}, skipping creation`);
+      } else {
+        this.logger.error(`Failed to create default workflow for workspace ${workspace._id}`, error);
+      }
+    }
+
     return workspace;
   }
 
@@ -76,6 +98,15 @@ export class WorkspacesService {
     }
     if (dto.settings) {
       workspace.settings = { ...workspace.settings, ...dto.settings };
+    }
+    if (dto.key) {
+      workspace.key = await this.generateUniqueKey(dto.key, id);
+    }
+    if (dto.type) {
+      workspace.type = dto.type;
+    }
+    if (dto.status) {
+      workspace.status = dto.status;
     }
 
     const updated = await this.workspacesRepository.update(id, workspace);
@@ -213,6 +244,32 @@ export class WorkspacesService {
     }
 
     return slug;
+  }
+
+  async generateUniqueKey(source: string, currentWorkspaceId?: string): Promise<string> {
+    const baseKey =
+      source
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .substring(0, 10) || 'SPACE';
+
+    let key = baseKey;
+    let counter = 1;
+
+    while (true) {
+      const existing = await this.workspacesRepository.findByKey(key);
+      if (!existing || existing._id.toString() === currentWorkspaceId) {
+        return key;
+      }
+
+      const suffix = counter.toString();
+      key = `${baseKey.substring(0, Math.max(1, 10 - suffix.length))}${suffix}`;
+      counter++;
+
+      if (counter > 999) {
+        throw new ConflictException('Unable to generate unique workspace key');
+      }
+    }
   }
 
   async getMembers(workspaceId: string): Promise<any[]> {

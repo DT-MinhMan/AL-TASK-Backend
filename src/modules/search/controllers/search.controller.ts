@@ -11,9 +11,9 @@ export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Global search across tasks, projects, and pages' })
+  @ApiOperation({ summary: 'Global search across tasks, workspaces, and pages' })
   @ApiQuery({ name: 'q', required: true, description: 'Search query' })
-  @ApiQuery({ name: 'types', required: false, description: 'Comma-separated list of types to search (task,project,page)' })
+  @ApiQuery({ name: 'types', required: false, description: 'Comma-separated list of types to search (task,workspace,page)' })
   @ApiQuery({ name: 'workspaceId', required: false, description: 'Filter by workspace ID' })
   @ApiQuery({ name: 'limit', required: false, description: 'Maximum results per type' })
   async search(
@@ -23,7 +23,7 @@ export class SearchController {
     @Query('limit') limit?: string,
   ) {
     if (!query) {
-      return { tasks: [], projects: [], pages: [], total: 0 };
+      return { tasks: [], workspaces: [], pages: [], total: 0 };
     }
 
     const options: any = {};
@@ -46,20 +46,20 @@ export class SearchController {
   @Get('tasks')
   @ApiOperation({ summary: 'Search tasks only' })
   @ApiQuery({ name: 'q', required: true, description: 'Search query' })
-  @ApiQuery({ name: 'projectId', required: false, description: 'Filter by project ID' })
-  async searchTasks(@Query('q') query: string, @Query('projectId') projectId?: string) {
+  @ApiQuery({ name: 'workspaceId', required: false, description: 'Filter by Workspace ID' })
+  async searchTasks(@Query('q') query: string, @Query('workspaceId') workspaceId?: string) {
     if (!query) {
       return [];
     }
-    return this.searchService.searchTasks(query, projectId || undefined);
+    return this.searchService.searchTasks(query, workspaceId || undefined);
   }
 
-  @Get('projects')
-  @ApiOperation({ summary: 'Search projects only' })
+  @Get('workspaces')
+  @ApiOperation({ summary: 'Search workspaces only' })
   @ApiQuery({ name: 'q', required: true, description: 'Search query' })
   @ApiQuery({ name: 'workspaceId', required: false, description: 'Filter by workspace ID' })
-  async searchProjects(@Query('q') query: string, @Query('workspaceId') workspaceId?: string) {
-    return this.searchService.searchProjects(query, workspaceId);
+  async searchWorkspaces(@Query('q') query: string, @Query('workspaceId') workspaceId?: string) {
+    return this.searchService.searchWorkspaces(query, workspaceId);
   }
 
   @Get('pages')

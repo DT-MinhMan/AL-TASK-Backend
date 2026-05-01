@@ -21,12 +21,12 @@ export class SprintsController {
   constructor(private readonly sprintsService: SprintsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List all sprints or filter by project' })
-  @ApiQuery({ name: 'projectId', required: false, description: 'Filter sprints by project ID' })
+  @ApiOperation({ summary: 'List all sprints or filter by Workspace' })
+  @ApiQuery({ name: 'workspaceId', required: false, description: 'Filter sprints by Workspace ID' })
   @ApiResponse({ status: 200, description: 'Returns list of sprints' })
-  async findAll(@Query('projectId') projectId?: string) {
-    if (projectId) {
-      return this.sprintsService.findByProject(projectId);
+  async findAll(@Query('workspaceId') workspaceId?: string) {
+    if (workspaceId) {
+      return this.sprintsService.findByWorkspace(workspaceId);
     }
     return this.sprintsService.findAll();
   }
@@ -44,9 +44,9 @@ export class SprintsController {
   @ApiResponse({ status: 201, description: 'Sprint created successfully' })
   async create(
     @Body() createSprintDto: CreateSprintDto,
-    @Query('projectId') projectId: string,
+    @Query('workspaceId') workspaceId: string,
   ) {
-    return this.sprintsService.create(createSprintDto, projectId);
+    return this.sprintsService.create(createSprintDto, workspaceId);
   }
 
   @Put(':id')

@@ -5,8 +5,8 @@ export type SprintDocument = Sprint & Document;
 
 @Schema({ timestamps: true })
 export class Sprint {
-  @Prop({ type: Types.ObjectId, ref: 'Project', required: true })
-  projectId!: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  workspaceId!: Types.ObjectId;
 
   @Prop({ required: true })
   name!: string;
@@ -29,5 +29,5 @@ export class Sprint {
 }
 
 export const SprintSchema = SchemaFactory.createForClass(Sprint);
-SprintSchema.index({ projectId: 1 });
+SprintSchema.index({ workspaceId: 1 });
 SprintSchema.index({ status: 1 });

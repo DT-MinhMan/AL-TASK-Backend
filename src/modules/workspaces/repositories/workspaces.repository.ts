@@ -29,6 +29,10 @@ export class WorkspacesRepository {
     return this.workspaceModel.findOne({ slug }).exec();
   }
 
+  async findByKey(key: string): Promise<WorkspaceDocument | null> {
+    return this.workspaceModel.findOne({ key }).exec();
+  }
+
   async findByUserId(userId: string): Promise<WorkspaceDocument[]> {
     if (!Types.ObjectId.isValid(userId)) {
       return [];

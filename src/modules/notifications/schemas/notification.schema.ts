@@ -17,7 +17,7 @@ export class Notification {
   @Prop()
   message?: string;
 
-  @Prop({ type: String, enum: ['task', 'page', 'workspace', 'project', 'sprint'] })
+  @Prop({ type: String, enum: ['task', 'page', 'workspace', 'sprint'] })
   targetType?: string;
 
   @Prop()

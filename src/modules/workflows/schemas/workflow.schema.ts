@@ -35,8 +35,8 @@ export class WorkflowTransition {
 
 @Schema({ timestamps: true })
 export class Workflow {
-  @Prop({ type: Types.ObjectId, ref: 'Project', required: true })
-  projectId!: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  workspaceId!: Types.ObjectId;
 
   @Prop({ required: true })
   name!: string;
@@ -56,4 +56,4 @@ export class Workflow {
 }
 
 export const WorkflowSchema = SchemaFactory.createForClass(Workflow);
-WorkflowSchema.index({ projectId: 1 }, { unique: true });
+WorkflowSchema.index({ workspaceId: 1 }, { unique: true });

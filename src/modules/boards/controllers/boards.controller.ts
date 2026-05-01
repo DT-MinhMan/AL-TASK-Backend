@@ -24,14 +24,14 @@ export class BoardsController {
   constructor(private readonly boardsService: BoardsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all boards or filter by project' })
-  @ApiQuery({ name: 'projectId', required: false, description: 'Filter boards by project ID' })
+  @ApiOperation({ summary: 'Get all boards or filter by Workspace' })
+  @ApiQuery({ name: 'workspaceId', required: false, description: 'Filter boards by Workspace ID' })
   @ApiResponse({ status: 200, description: 'Boards retrieved successfully' })
-  async findAll(@Query('projectId') projectId?: string) {
-    if (projectId) {
-      return this.boardsService.findByProject(projectId);
+  async findAll(@Query('workspaceId') workspaceId?: string) {
+    if (workspaceId) {
+      return this.boardsService.findByWorkspace(workspaceId);
     }
-    return this.boardsService.findByProject('');
+    return this.boardsService.findByWorkspace('');
   }
 
   @Get(':id')

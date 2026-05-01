@@ -20,8 +20,8 @@ export class BoardColumn {
 
 @Schema({ timestamps: true })
 export class Board {
-  @Prop({ type: Types.ObjectId, ref: 'Project', required: true })
-  projectId!: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  workspaceId!: Types.ObjectId;
 
   @Prop({ required: true })
   name!: string;
@@ -38,4 +38,4 @@ export class Board {
 }
 
 export const BoardSchema = SchemaFactory.createForClass(Board);
-BoardSchema.index({ projectId: 1 });
+BoardSchema.index({ workspaceId: 1 });

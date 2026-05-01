@@ -24,12 +24,12 @@ export class WorkflowsController {
   constructor(private readonly workflowsService: WorkflowsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List all workflows or filter by projectId' })
-  @ApiQuery({ name: 'projectId', required: false, description: 'Filter workflows by project ID' })
+  @ApiOperation({ summary: 'List all workflows or filter by workspaceId' })
+  @ApiQuery({ name: 'workspaceId', required: false, description: 'Filter workflows by Workspace ID' })
   @ApiResponse({ status: 200, description: 'List of workflows' })
-  async findAll(@Query('projectId') projectId?: string) {
-    if (projectId) {
-      return this.workflowsService.findByProject(projectId).then(w => w ? [w] : []);
+  async findAll(@Query('workspaceId') workspaceId?: string) {
+    if (workspaceId) {
+      return this.workflowsService.findByWorkspace(workspaceId).then(w => w ? [w] : []);
     }
     return [];
   }
@@ -46,8 +46,8 @@ export class WorkflowsController {
   @Post()
   @ApiOperation({ summary: 'Create a new workflow' })
   @ApiResponse({ status: 201, description: 'Workflow created successfully' })
-  @ApiResponse({ status: 409, description: 'Workflow already exists for this project' })
-  async create(@Body() dto: CreateWorkflowDto & { projectId: string }) {
+  @ApiResponse({ status: 409, description: 'Workflow already exists for this Workspace' })
+  async create(@Body() dto: CreateWorkflowDto & { workspaceId: string }) {
     return this.workflowsService.create(dto);
   }
 
@@ -70,13 +70,13 @@ export class WorkflowsController {
     await this.workflowsService.delete(id);
   }
 
-  @Get('project/:projectId')
-  @ApiOperation({ summary: 'Get workflow for a specific project' })
-  @ApiParam({ name: 'projectId', description: 'Project ID' })
-  @ApiResponse({ status: 200, description: 'Workflow for the project' })
+  @Get('workspace/:workspaceId')
+  @ApiOperation({ summary: 'Get workflow for a specific workspace' })
+  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
+  @ApiResponse({ status: 200, description: 'Workflow for the Workspace' })
   @ApiResponse({ status: 404, description: 'Workflow not found' })
-  async findByProject(@Param('projectId') projectId: string) {
-    const workflow = await this.workflowsService.findByProject(projectId);
+  async findByWorkspace(@Param('workspaceId') workspaceId: string) {
+    const workflow = await this.workflowsService.findByWorkspace(workspaceId);
     if (!workflow) {
       return null;
     }
@@ -95,12 +95,12 @@ export class WorkflowsController {
     return this.workflowsService.getNextStatuses(id, fromStatus);
   }
 
-  @Post('default/:projectId')
-  @ApiOperation({ summary: 'Create a default workflow for a project' })
-  @ApiParam({ name: 'projectId', description: 'Project ID' })
+  @Post('default/:workspaceId')
+  @ApiOperation({ summary: 'Create a default workflow for a Workspace' })
+  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   @ApiResponse({ status: 201, description: 'Default workflow created' })
-  @ApiResponse({ status: 409, description: 'Workflow already exists for this project' })
-  async createDefault(@Param('projectId') projectId: string) {
-    return this.workflowsService.createDefaultWorkflow(projectId);
+  @ApiResponse({ status: 409, description: 'Workflow already exists for this Workspace' })
+  async createDefault(@Param('workspaceId') workspaceId: string) {
+    return this.workflowsService.createDefaultWorkflow(workspaceId);
   }
 }

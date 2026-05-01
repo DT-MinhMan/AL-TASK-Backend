@@ -16,7 +16,6 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.ad
 
 // Jira + Confluence Modules
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
-import { ProjectsModule } from './modules/projects/projects.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { BoardsModule } from './modules/boards/boards.module';
 import { SprintsModule } from './modules/sprints/sprints.module';
@@ -66,7 +65,6 @@ import { VerifyModule } from './modules/verify/verify.module';
 
     // Jira Modules
     WorkspacesModule,
-    ProjectsModule,
     TasksModule,
     BoardsModule,
     SprintsModule,

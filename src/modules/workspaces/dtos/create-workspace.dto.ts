@@ -1,14 +1,14 @@
-import { IsString, IsOptional, MinLength, MaxLength, IsObject } from 'class-validator';
+import { IsString, IsOptional, MinLength, MaxLength, IsObject, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateWorkspaceDto {
-  @ApiProperty({ example: 'My Company' })
+  @ApiProperty({ example: 'AL - Tasks' })
   @IsString()
   @MinLength(2)
   @MaxLength(100)
   name!: string;
 
-  @ApiPropertyOptional({ example: 'Workspace for my team' })
+  @ApiPropertyOptional({ example: 'Jira space for my team' })
   @IsOptional()
   @IsString()
   @MaxLength(500)
@@ -19,6 +19,17 @@ export class CreateWorkspaceDto {
   @IsString()
   @MaxLength(50)
   slug?: string;
+
+  @ApiPropertyOptional({ example: 'SCRUM' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  key?: string;
+
+  @ApiPropertyOptional({ enum: ['scrum', 'kanban'], default: 'kanban' })
+  @IsOptional()
+  @IsEnum(['scrum', 'kanban'])
+  type?: string;
 }
 
 export class UpdateWorkspaceDto {
@@ -39,4 +50,20 @@ export class UpdateWorkspaceDto {
   @IsOptional()
   @IsObject()
   settings?: Record<string, any>;
+
+  @ApiPropertyOptional({ example: 'SCRUM' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  key?: string;
+
+  @ApiPropertyOptional({ enum: ['scrum', 'kanban'] })
+  @IsOptional()
+  @IsEnum(['scrum', 'kanban'])
+  type?: string;
+
+  @ApiPropertyOptional({ enum: ['active', 'archived'] })
+  @IsOptional()
+  @IsEnum(['active', 'archived'])
+  status?: string;
 }

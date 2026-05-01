@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, FilterQuery } from 'mongoose';
 import { Task, TaskDocument, TaskAttachment } from '../schemas/task.schema';
 import { CreateTaskDto, UpdateTaskDto, FilterTaskDto } from '../dtos/create-task.dto';
-import { ProjectsService } from '../../projects/services/projects.service';
+import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 
 @Injectable()
 export class TasksService {
@@ -11,23 +11,27 @@ export class TasksService {
 
   constructor(
     @InjectModel(Task.name) private taskModel: Model<TaskDocument>,
-    private projectsService: ProjectsService,
+    private workspacesService: WorkspacesService,
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string): Promise<TaskDocument> {
-    let projectId = createTaskDto.projectId;
-    if (!projectId) {
-      const projects = await this.projectsService.findByUserId(userId);
-      if (projects.length === 0) {
-        throw new NotFoundException('No project found. Please create a project first.');
+    let workspaceId = createTaskDto.workspaceId;
+    if (!workspaceId) {
+      const workspaces = await this.workspacesService.findByUserId(userId);
+      if (workspaces.length === 0) {
+        throw new NotFoundException('No workspace found. Please create a workspace first.');
       }
-      projectId = projects[0]._id.toString();
+      workspaceId = workspaces[0]._id.toString();
     }
-    const key = await this.getNextKey(projectId);
+    if (!workspaceId) {
+      throw new NotFoundException('Workspace is required to create a task.');
+    }
+
+    const key = await this.getNextKey(workspaceId);
 
     const task = new this.taskModel({
       ...createTaskDto,
-      projectId: new Types.ObjectId(projectId),
+      workspaceId: new Types.ObjectId(workspaceId),
       reporterId: new Types.ObjectId(userId),
       key,
       status: createTaskDto.status || 'todo',
@@ -49,7 +53,7 @@ export class TasksService {
 
     const task = await this.taskModel
       .findById(id)
-      .populate('projectId', 'key name')
+      .populate('workspaceId', 'key name')
       .populate('assigneeId', 'name email avatar')
       .populate('reporterId', 'name email avatar')
       .populate('sprintId', 'name startDate endDate')
@@ -68,7 +72,7 @@ export class TasksService {
   async findByKey(key: string): Promise<TaskDocument> {
     const task = await this.taskModel
       .findOne({ key })
-      .populate('projectId', 'key name')
+      .populate('workspaceId', 'key name')
       .populate('assigneeId', 'name email avatar')
       .populate('reporterId', 'name email avatar')
       .populate('sprintId', 'name startDate endDate')
@@ -87,8 +91,8 @@ export class TasksService {
   async findAll(filterDto: FilterTaskDto): Promise<{ tasks: TaskDocument[]; total: number; page: number; limit: number }> {
     const filter: FilterQuery<TaskDocument> = {};
 
-    if (filterDto.projectId) {
-      filter.projectId = new Types.ObjectId(filterDto.projectId);
+    if (filterDto.workspaceId) {
+      filter.workspaceId = new Types.ObjectId(filterDto.workspaceId);
     }
     if (filterDto.sprintId) {
       filter.sprintId = new Types.ObjectId(filterDto.sprintId);
@@ -131,7 +135,7 @@ export class TasksService {
     const [tasks, total] = await Promise.all([
       this.taskModel
         .find(filter)
-        .populate('projectId', 'key name')
+        .populate('workspaceId', 'key name')
         .populate('assigneeId', 'name email avatar')
         .populate('reporterId', 'name email avatar')
         .populate('sprintId', 'name')
@@ -147,9 +151,9 @@ export class TasksService {
     return { tasks, total, page, limit };
   }
 
-  async findByProject(projectId: string): Promise<TaskDocument[]> {
+  async findByWorkspace(workspaceId: string): Promise<TaskDocument[]> {
     return this.taskModel
-      .find({ projectId: new Types.ObjectId(projectId) })
+      .find({ workspaceId: new Types.ObjectId(workspaceId) })
       .populate('assigneeId', 'name email avatar')
       .populate('reporterId', 'name email avatar')
       .sort({ createdAt: -1 })
@@ -159,7 +163,7 @@ export class TasksService {
   async findBySprint(sprintId: string): Promise<TaskDocument[]> {
     return this.taskModel
       .find({ sprintId: new Types.ObjectId(sprintId) })
-      .populate('projectId', 'key name')
+      .populate('workspaceId', 'key name')
       .populate('assigneeId', 'name email avatar')
       .populate('reporterId', 'name email avatar')
       .sort({ createdAt: -1 })
@@ -169,7 +173,7 @@ export class TasksService {
   async findByBoard(boardId: string): Promise<Record<string, TaskDocument[]>> {
     const tasks = await this.taskModel
       .find({ boardId: new Types.ObjectId(boardId) })
-      .populate('projectId', 'key name')
+      .populate('workspaceId', 'key name')
       .populate('assigneeId', 'name email avatar')
       .populate('reporterId', 'name email avatar')
       .sort({ createdAt: -1 })
@@ -190,7 +194,7 @@ export class TasksService {
   async findByAssignee(userId: string): Promise<TaskDocument[]> {
     return this.taskModel
       .find({ assigneeId: new Types.ObjectId(userId) })
-      .populate('projectId', 'key name')
+      .populate('workspaceId', 'key name')
       .populate('sprintId', 'name')
       .populate('boardId', 'name')
       .sort({ createdAt: -1 })
@@ -222,7 +226,7 @@ export class TasksService {
 
     const task = await this.taskModel
       .findByIdAndUpdate(id, updateData, { new: true })
-      .populate('projectId', 'key name')
+      .populate('workspaceId', 'key name')
       .populate('assigneeId', 'name email avatar')
       .populate('reporterId', 'name email avatar')
       .populate('sprintId', 'name')
@@ -264,7 +268,7 @@ export class TasksService {
         },
         { new: true },
       )
-      .populate('projectId', 'key name')
+      .populate('workspaceId', 'key name')
       .populate('assigneeId', 'name email avatar')
       .exec();
 
@@ -287,7 +291,7 @@ export class TasksService {
         { assigneeId: new Types.ObjectId(userId) },
         { new: true },
       )
-      .populate('projectId', 'key name')
+      .populate('workspaceId', 'key name')
       .populate('assigneeId', 'name email avatar')
       .populate('reporterId', 'name email avatar')
       .exec();
@@ -307,7 +311,7 @@ export class TasksService {
 
     const task = await this.taskModel
       .findByIdAndUpdate(taskId, { status }, { new: true })
-      .populate('projectId', 'key name')
+      .populate('workspaceId', 'key name')
       .populate('assigneeId', 'name email avatar')
       .exec();
 
@@ -409,13 +413,13 @@ export class TasksService {
     return task;
   }
 
-  async getNextKey(projectId: string): Promise<string> {
-    const project = await this.projectsService.findById(projectId);
-    const projectKey = project.key;
+  async getNextKey(workspaceId: string): Promise<string> {
+    const workspace = await this.workspacesService.findById(workspaceId);
+    const workspaceKey = workspace.key;
 
-    const count = await this.taskModel.countDocuments({ projectId: new Types.ObjectId(projectId) }).exec();
+    const count = await this.taskModel.countDocuments({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
     const nextNumber = count + 1;
 
-    return `${projectKey}-${nextNumber}`;
+    return `${workspaceKey}-${nextNumber}`;
   }
 }

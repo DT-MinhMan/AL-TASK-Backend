@@ -26,8 +26,8 @@ export class TaskAttachment {
 
 @Schema({ timestamps: true })
 export class Task {
-  @Prop({ type: Types.ObjectId, ref: 'Project', required: true })
-  projectId!: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  workspaceId!: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'Sprint' })
   sprintId?: Types.ObjectId;
@@ -86,7 +86,7 @@ export class Task {
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task);
-TaskSchema.index({ projectId: 1 });
+TaskSchema.index({ workspaceId: 1 });
 TaskSchema.index({ sprintId: 1 });
 TaskSchema.index({ boardId: 1, boardColumnId: 1 });
 TaskSchema.index({ assigneeId: 1 });

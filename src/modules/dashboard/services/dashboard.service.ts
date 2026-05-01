@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Task } from '../../tasks/schemas/task.schema';
-import { Project } from '../../projects/schemas/project.schema';
+import { Workspace } from '../../workspaces/schemas/workspace.schema';
 import { Sprint } from '../../sprints/schemas/sprint.schema';
 import { Page } from '../../pages/schemas/page.schema';
 
@@ -12,7 +12,7 @@ export class DashboardService {
 
   constructor(
     @InjectModel(Task.name) private taskModel: Model<Task>,
-    @InjectModel(Project.name) private projectModel: Model<Project>,
+    @InjectModel(Workspace.name) private workspaceModel: Model<Workspace>,
     @InjectModel(Sprint.name) private sprintModel: Model<Sprint>,
     @InjectModel(Page.name) private pageModel: Model<Page>,
   ) {}
@@ -22,44 +22,35 @@ export class DashboardService {
 
     const workspaceObjectId = new Types.ObjectId(workspaceId);
 
-    // Get total projects
-    const totalProjects = await this.projectModel.countDocuments({
-      workspaceId: workspaceObjectId,
-    });
+    const workspace = await this.workspaceModel.findById(workspaceObjectId, { _id: 1 });
+    const workspaceIds = workspace ? [workspace._id] : [];
 
-    // Get all projects in workspace to calculate task counts
-    const projects = await this.projectModel.find(
-      { workspaceId: workspaceObjectId },
-      { _id: 1 },
-    );
-    const projectIds = projects.map((p) => p._id);
-
-    // Get total tasks across all projects
+    // Get total tasks across all Workspaces
     const totalTasks = await this.taskModel.countDocuments({
-      projectId: { $in: projectIds },
+      workspaceId: { $in: workspaceIds },
     });
 
     // Tasks by status
     const tasksByStatus = await this.taskModel.aggregate([
-      { $match: { projectId: { $in: projectIds } } },
+      { $match: { workspaceId: { $in: workspaceIds } } },
       { $group: { _id: '$status', count: { $sum: 1 } } },
     ]);
 
     // Tasks by type
     const tasksByType = await this.taskModel.aggregate([
-      { $match: { projectId: { $in: projectIds } } },
+      { $match: { workspaceId: { $in: workspaceIds } } },
       { $group: { _id: '$type', count: { $sum: 1 } } },
     ]);
 
     // Tasks by priority
     const tasksByPriority = await this.taskModel.aggregate([
-      { $match: { projectId: { $in: projectIds } } },
+      { $match: { workspaceId: { $in: workspaceIds } } },
       { $group: { _id: '$priority', count: { $sum: 1 } } },
     ]);
 
     // Recent tasks
     const recentTasks = await this.taskModel
-      .find({ projectId: { $in: projectIds } })
+      .find({ workspaceId: { $in: workspaceIds } })
       .sort({ createdAt: -1 })
       .limit(10)
       .select('title key status type createdAt')
@@ -68,10 +59,10 @@ export class DashboardService {
     // My tasks (assigned to current user)
     const myTasks = await this.taskModel
       .find({
-        projectId: { $in: projectIds },
+        workspaceId: { $in: workspaceIds },
         assigneeId: new Types.ObjectId(userId),
       })
-      .select('title key status type priority projectId createdAt')
+      .select('title key status type priority workspaceId createdAt')
       .exec();
 
     // Active sprints
@@ -81,7 +72,7 @@ export class DashboardService {
     });
 
     return {
-      totalProjects,
+      totalWorkspaces: workspace ? 1 : 0,
       totalTasks,
       tasksByStatus,
       tasksByType,
@@ -92,47 +83,47 @@ export class DashboardService {
     };
   }
 
-  async getProjectStats(projectId: string) {
-    this.logger.log(`Getting project stats for projectId: ${projectId}`);
+  async getWorkspaceStats(workspaceId: string) {
+    this.logger.log(`Getting Workspace stats for workspaceId: ${workspaceId}`);
 
-    const projectObjectId = new Types.ObjectId(projectId);
+    const workspaceObjectId = new Types.ObjectId(workspaceId);
 
     const totalTasks = await this.taskModel.countDocuments({
-      projectId: projectObjectId,
+      workspaceId: workspaceObjectId,
     });
 
     const completedTasks = await this.taskModel.countDocuments({
-      projectId: projectObjectId,
+      workspaceId: workspaceObjectId,
       status: 'done',
     });
 
     const inProgressTasks = await this.taskModel.countDocuments({
-      projectId: projectObjectId,
+      workspaceId: workspaceObjectId,
       status: 'in_progress',
     });
 
     const todoTasks = await this.taskModel.countDocuments({
-      projectId: projectObjectId,
+      workspaceId: workspaceObjectId,
       status: 'todo',
     });
 
     const tasksByStatus = await this.taskModel.aggregate([
-      { $match: { projectId: projectObjectId } },
+      { $match: { workspaceId: workspaceObjectId } },
       { $group: { _id: '$status', count: { $sum: 1 } } },
     ]);
 
     const tasksByType = await this.taskModel.aggregate([
-      { $match: { projectId: projectObjectId } },
+      { $match: { workspaceId: workspaceObjectId } },
       { $group: { _id: '$type', count: { $sum: 1 } } },
     ]);
 
     const tasksByPriority = await this.taskModel.aggregate([
-      { $match: { projectId: projectObjectId } },
+      { $match: { workspaceId: workspaceObjectId } },
       { $group: { _id: '$priority', count: { $sum: 1 } } },
     ]);
 
     const tasksByAssignee = await this.taskModel.aggregate([
-      { $match: { projectId: projectObjectId, assigneeId: { $ne: null } } },
+      { $match: { workspaceId: workspaceObjectId, assigneeId: { $ne: null } } },
       {
         $group: {
           _id: '$assigneeId',
@@ -163,7 +154,7 @@ export class DashboardService {
 
     // Sprint progress
     const activeSprint = await this.sprintModel.findOne({
-      projectId: projectObjectId,
+      workspaceId: workspaceObjectId,
       status: 'active',
     });
 
@@ -171,7 +162,7 @@ export class DashboardService {
     if (activeSprint) {
       const sprintTasks = await this.taskModel
         .find({
-          projectId: projectObjectId,
+          workspaceId: workspaceObjectId,
           sprintId: activeSprint._id,
         })
         .select('storyPoints status')
@@ -234,8 +225,8 @@ export class DashboardService {
       })
       .sort({ updatedAt: -1 })
       .limit(10)
-      .select('title key type priority projectId completedAt')
-      .populate('projectId', 'name key')
+      .select('title key type priority workspaceId completedAt')
+      .populate('workspaceId', 'name key')
       .exec();
 
     const recentActivity = await this.taskModel
@@ -244,7 +235,7 @@ export class DashboardService {
       })
       .sort({ updatedAt: -1 })
       .limit(20)
-      .select('title key status type priority projectId createdAt updatedAt createdBy updatedBy')
+      .select('title key status type priority workspaceId createdAt updatedAt createdBy updatedBy')
       .exec();
 
     return {

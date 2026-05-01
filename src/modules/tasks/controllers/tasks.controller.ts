@@ -120,10 +120,10 @@ export class TasksController {
     return this.tasksService.removeAttachment(id, attachmentId);
   }
 
-  @Get('project/:projectId')
-  @ApiOperation({ summary: 'Get all tasks for a project' })
-  async findByProject(@Param('projectId') projectId: string) {
-    return this.tasksService.findByProject(projectId);
+  @Get('workspace/:workspaceId')
+  @ApiOperation({ summary: 'Get all tasks for a workspace' })
+  async findByWorkspace(@Param('workspaceId') workspaceId: string) {
+    return this.tasksService.findByWorkspace(workspaceId);
   }
 
   @Get('sprint/:sprintId')

@@ -19,7 +19,7 @@ export class CreateTaskDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  projectId?: string;
+  workspaceId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -158,7 +158,7 @@ export class FilterTaskDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  projectId?: string;
+  workspaceId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

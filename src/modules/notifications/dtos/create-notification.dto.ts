@@ -19,9 +19,9 @@ export class CreateNotificationDto {
   @IsString()
   message?: string;
 
-  @ApiPropertyOptional({ enum: ['task', 'page', 'workspace', 'project', 'sprint'] })
+  @ApiPropertyOptional({ enum: ['task', 'page', 'workspace', 'sprint'] })
   @IsOptional()
-  @IsEnum(['task', 'page', 'workspace', 'project', 'sprint'])
+  @IsEnum(['task', 'page', 'workspace', 'sprint'])
   targetType?: string;
 
   @ApiPropertyOptional()

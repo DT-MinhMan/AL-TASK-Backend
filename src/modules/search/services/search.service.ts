@@ -2,18 +2,18 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Task } from '../../tasks/schemas/task.schema';
-import { Project } from '../../projects/schemas/project.schema';
+import { Workspace } from '../../workspaces/schemas/workspace.schema';
 import { Page } from '../../pages/schemas/page.schema';
 
 export interface SearchOptions {
-  types?: ('task' | 'project' | 'page')[];
+  types?: ('task' | 'workspace' | 'page')[];
   workspaceId?: string;
   limit?: number;
 }
 
 export interface SearchResult {
   tasks: any[];
-  projects: any[];
+  workspaces: any[];
   pages: any[];
 }
 
@@ -23,19 +23,19 @@ export class SearchService {
 
   constructor(
     @InjectModel(Task.name) private taskModel: Model<Task>,
-    @InjectModel(Project.name) private projectModel: Model<Project>,
+    @InjectModel(Workspace.name) private workspaceModel: Model<Workspace>,
     @InjectModel(Page.name) private pageModel: Model<Page>,
   ) {}
 
   async search(query: string, userId: string, options?: SearchOptions): Promise<SearchResult> {
     this.logger.log(`Searching for "${query}" with options: ${JSON.stringify(options)}`);
 
-    const types = options?.types || ['task', 'project', 'page'];
+    const types = options?.types || ['task', 'workspace', 'page'];
     const limit = options?.limit || 20;
 
     const result: SearchResult = {
       tasks: [],
-      projects: [],
+      workspaces: [],
       pages: [],
     };
 
@@ -43,8 +43,8 @@ export class SearchService {
       result.tasks = await this.searchTasks(query, undefined);
     }
 
-    if (types.includes('project')) {
-      result.projects = await this.searchProjects(query, options?.workspaceId);
+    if (types.includes('workspace')) {
+      result.workspaces = await this.searchWorkspaces(query, options?.workspaceId);
     }
 
     if (types.includes('page')) {
@@ -54,8 +54,8 @@ export class SearchService {
     return result;
   }
 
-  async searchTasks(query: string, projectId?: string): Promise<any[]> {
-    this.logger.log(`Searching tasks for query: "${query}", projectId: ${projectId}`);
+  async searchTasks(query: string, workspaceId?: string): Promise<any[]> {
+    this.logger.log(`Searching tasks for query: "${query}", workspaceId: ${workspaceId}`);
 
     const searchRegex = { $regex: query, $options: 'i' };
     const matchQuery: any = {
@@ -66,19 +66,19 @@ export class SearchService {
       ],
     };
 
-    if (projectId) {
-      matchQuery.projectId = new Types.ObjectId(projectId);
+    if (workspaceId) {
+      matchQuery.workspaceId = new Types.ObjectId(workspaceId);
     }
 
     return this.taskModel
       .find(matchQuery)
-      .select('_id key title status type priority projectId assigneeId createdAt')
+      .select('_id key title status type priority workspaceId assigneeId createdAt')
       .limit(20)
       .exec();
   }
 
-  async searchProjects(query: string, workspaceId?: string): Promise<any[]> {
-    this.logger.log(`Searching projects for query: "${query}", workspaceId: ${workspaceId}`);
+  async searchWorkspaces(query: string, workspaceId?: string): Promise<any[]> {
+    this.logger.log(`Searching workspaces for query: "${query}", workspaceId: ${workspaceId}`);
 
     const searchRegex = { $regex: query, $options: 'i' };
     const matchQuery: any = {
@@ -90,10 +90,10 @@ export class SearchService {
     };
 
     if (workspaceId) {
-      matchQuery.workspaceId = new Types.ObjectId(workspaceId);
+      matchQuery._id = new Types.ObjectId(workspaceId);
     }
 
-    return this.projectModel
+    return this.workspaceModel
       .find(matchQuery)
       .select('_id name key type status createdAt')
       .limit(20)

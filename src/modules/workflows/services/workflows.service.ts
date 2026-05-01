@@ -13,10 +13,10 @@ export class WorkflowsService {
     @InjectModel(Workflow.name) private readonly workflowModel: Model<WorkflowDocument>,
   ) {}
 
-  async create(dto: CreateWorkflowDto & { projectId: string }): Promise<WorkflowDocument> {
-    const existingWorkflow = await this.workflowModel.findOne({ projectId: dto.projectId });
+  async create(dto: CreateWorkflowDto & { workspaceId: string }): Promise<WorkflowDocument> {
+    const existingWorkflow = await this.workflowModel.findOne({ workspaceId: dto.workspaceId });
     if (existingWorkflow) {
-      throw new ConflictException('Workflow already exists for this project');
+      throw new ConflictException('Workflow already exists for this Workspace');
     }
 
     const statusesWithDefaults = dto.statuses.map((status) => ({
@@ -25,7 +25,7 @@ export class WorkflowsService {
     }));
 
     const workflow = new this.workflowModel({
-      projectId: new Types.ObjectId(dto.projectId),
+      workspaceId: new Types.ObjectId(dto.workspaceId),
       name: dto.name,
       defaultStatus: dto.defaultStatus,
       statuses: statusesWithDefaults,
@@ -33,12 +33,12 @@ export class WorkflowsService {
     });
 
     const saved = await workflow.save();
-    this.logger.log(`Created workflow ${saved._id} for project ${dto.projectId}`);
+    this.logger.log(`Created workflow ${saved._id} for Workspace ${dto.workspaceId}`);
     return saved;
   }
 
-  async findByProject(projectId: string): Promise<WorkflowDocument | null> {
-    return this.workflowModel.findOne({ projectId: new Types.ObjectId(projectId) });
+  async findByWorkspace(workspaceId: string): Promise<WorkflowDocument | null> {
+    return this.workflowModel.findOne({ workspaceId: new Types.ObjectId(workspaceId) });
   }
 
   async findById(id: string): Promise<WorkflowDocument> {
@@ -90,10 +90,10 @@ export class WorkflowsService {
     return workflow.transitions.filter((t: WorkflowTransitionDto) => t.fromStatus === currentStatus);
   }
 
-  async createDefaultWorkflow(projectId: string): Promise<WorkflowDocument> {
-    const existingWorkflow = await this.findByProject(projectId);
+  async createDefaultWorkflow(workspaceId: string): Promise<WorkflowDocument> {
+    const existingWorkflow = await this.findByWorkspace(workspaceId);
     if (existingWorkflow) {
-      throw new ConflictException('Workflow already exists for this project');
+      throw new ConflictException('Workflow already exists for this Workspace');
     }
 
     const defaultStatuses = [
@@ -113,7 +113,7 @@ export class WorkflowsService {
     ];
 
     const workflow = new this.workflowModel({
-      projectId: new Types.ObjectId(projectId),
+      workspaceId: new Types.ObjectId(workspaceId),
       name: 'Default Workflow',
       defaultStatus: 'todo',
       statuses: defaultStatuses,
@@ -121,7 +121,7 @@ export class WorkflowsService {
     });
 
     const saved = await workflow.save();
-    this.logger.log(`Created default workflow ${saved._id} for project ${projectId}`);
+    this.logger.log(`Created default workflow ${saved._id} for Workspace ${workspaceId}`);
     return saved;
   }
 }

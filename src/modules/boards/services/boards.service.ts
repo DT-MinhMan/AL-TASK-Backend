@@ -36,14 +36,14 @@ export class BoardsService {
     return savedBoard;
   }
 
-  async findByProject(projectId: string): Promise<BoardDocument[]> {
-    this.logger.log(`Finding boards for project: ${projectId}`);
+  async findByWorkspace(workspaceId: string): Promise<BoardDocument[]> {
+    this.logger.log(`Finding boards for Workspace: ${workspaceId}`);
 
-    if (!Types.ObjectId.isValid(projectId)) {
-      throw new BadRequestException('Invalid project ID format');
+    if (!Types.ObjectId.isValid(workspaceId)) {
+      throw new BadRequestException('Invalid Workspace ID format');
     }
 
-    return this.boardModel.find({ projectId: new Types.ObjectId(projectId) }).exec();
+    return this.boardModel.find({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
   }
 
   async findById(id: string): Promise<BoardDocument> {

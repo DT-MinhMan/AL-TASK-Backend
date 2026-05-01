@@ -12,11 +12,11 @@ export class SprintsService {
     @InjectModel(Sprint.name) private readonly sprintModel: Model<SprintDocument>,
   ) {}
 
-  async create(createSprintDto: CreateSprintDto, projectId: string): Promise<SprintDocument> {
-    this.logger.log(`Creating sprint for project: ${projectId}`);
+  async create(createSprintDto: CreateSprintDto, workspaceId: string): Promise<SprintDocument> {
+    this.logger.log(`Creating sprint for Workspace: ${workspaceId}`);
     const sprint = new this.sprintModel({
       ...createSprintDto,
-      projectId: new Types.ObjectId(projectId),
+      workspaceId: new Types.ObjectId(workspaceId),
     });
     return sprint.save();
   }
@@ -26,9 +26,9 @@ export class SprintsService {
     return this.sprintModel.find().exec();
   }
 
-  async findByProject(projectId: string): Promise<SprintDocument[]> {
-    this.logger.log(`Finding sprints for project: ${projectId}`);
-    return this.sprintModel.find({ projectId: new Types.ObjectId(projectId) }).exec();
+  async findByWorkspace(workspaceId: string): Promise<SprintDocument[]> {
+    this.logger.log(`Finding sprints for Workspace: ${workspaceId}`);
+    return this.sprintModel.find({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
   }
 
   async findOne(id: string): Promise<SprintDocument> {
@@ -59,18 +59,18 @@ export class SprintsService {
     }
   }
 
-  async findActive(projectId: string): Promise<SprintDocument | null> {
-    this.logger.log(`Finding active sprint for project: ${projectId}`);
+  async findActive(workspaceId: string): Promise<SprintDocument | null> {
+    this.logger.log(`Finding active sprint for Workspace: ${workspaceId}`);
     return this.sprintModel.findOne({
-      projectId: new Types.ObjectId(projectId),
+      workspaceId: new Types.ObjectId(workspaceId),
       status: 'active',
     }).exec();
   }
 
-  async findCompleted(projectId: string): Promise<SprintDocument[]> {
-    this.logger.log(`Finding completed sprints for project: ${projectId}`);
+  async findCompleted(workspaceId: string): Promise<SprintDocument[]> {
+    this.logger.log(`Finding completed sprints for Workspace: ${workspaceId}`);
     return this.sprintModel.find({
-      projectId: new Types.ObjectId(projectId),
+      workspaceId: new Types.ObjectId(workspaceId),
       status: 'completed',
     }).exec();
   }

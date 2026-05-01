@@ -16,10 +16,10 @@ export class DashboardController {
     return this.dashboardService.getWorkspaceOverview(workspaceId, req.user.userId);
   }
 
-  @Get('project/:projectId')
-  @ApiOperation({ summary: 'Get project-specific statistics' })
-  async getProjectStats(@Param('projectId') projectId: string) {
-    return this.dashboardService.getProjectStats(projectId);
+  @Get('workspace/:workspaceId/stats')
+  @ApiOperation({ summary: 'Get workspace-specific statistics' })
+  async getWorkspaceStats(@Param('workspaceId') workspaceId: string) {
+    return this.dashboardService.getWorkspaceStats(workspaceId);
   }
 
   @Get('user/me')

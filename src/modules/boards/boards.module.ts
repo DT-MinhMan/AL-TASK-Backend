@@ -5,12 +5,12 @@ import { BoardsController } from './controllers/boards.controller';
 import { BoardsService } from './services/boards.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthModule } from '../auth/auth.module';
-import { ProjectsModule } from '../projects/projects.module';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Board.name, schema: BoardSchema }]),
-    forwardRef(() => ProjectsModule),
+    forwardRef(() => WorkspacesModule),
     forwardRef(() => AuthModule),
   ],
   controllers: [BoardsController],

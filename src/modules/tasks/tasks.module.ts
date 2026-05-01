@@ -5,7 +5,7 @@ import { TasksService } from './services/tasks.service';
 import { Task, TaskSchema } from './schemas/task.schema';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthModule } from '../auth/auth.module';
-import { ProjectsModule } from '../projects/projects.module';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { SprintsModule } from '../sprints/sprints.module';
 import { BoardsModule } from '../boards/boards.module';
 import { UsersModule } from '../users/users.module';
@@ -13,7 +13,7 @@ import { UsersModule } from '../users/users.module';
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Task.name, schema: TaskSchema }]),
-    forwardRef(() => ProjectsModule),
+    forwardRef(() => WorkspacesModule),
     forwardRef(() => SprintsModule),
     forwardRef(() => BoardsModule),
     forwardRef(() => UsersModule),

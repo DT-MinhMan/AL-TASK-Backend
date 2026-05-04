@@ -77,7 +77,9 @@ export class AuthService {
 
       // Tạo user mới mà không mã hóa mật khẩu (giả định mật khẩu đã được mã hóa từ frontend)
       const newUser = await this.usersService.createUser({
-        ...registerDto,
+        email: registerDto.email,
+        password: registerDto.password,
+        role: 'user',
         // status: 'pending',
         status: 'active',
       });

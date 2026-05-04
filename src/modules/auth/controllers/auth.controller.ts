@@ -70,7 +70,6 @@ export class AuthController {
     this.logger.debug(
       `Dữ liệu đăng ký: ${JSON.stringify({
         email: registerDto.email,
-        role: registerDto.role,
       })}`,
     );
 

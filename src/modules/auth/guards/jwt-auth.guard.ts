@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { TokenService } from '../services/token.service';
 
 // Định nghĩa kiểu payload của JWT
 interface JwtPayload {
@@ -26,9 +27,12 @@ interface RequestWithUser extends Request {
 export class JwtAuthGuard implements CanActivate {
   private readonly logger = new Logger(JwtAuthGuard.name);
 
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly tokenService: TokenService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<RequestWithUser>();
     const authHeader = request.headers.authorization;
 
@@ -41,6 +45,18 @@ export class JwtAuthGuard implements CanActivate {
 
     try {
       const decoded = this.jwtService.verify<JwtPayload>(token);
+      const activeToken = await this.tokenService.findToken(token);
+
+      if (!activeToken) {
+        this.logger.warn(`⚠️ Token đã bị thu hồi hoặc không tồn tại: ID ${decoded.userId}`);
+        throw new UnauthorizedException('Token đã bị thu hồi hoặc không còn hợp lệ');
+      }
+
+      if (activeToken.userId.toString() !== decoded.userId) {
+        this.logger.warn(`⚠️ Token không khớp userId: ID ${decoded.userId}`);
+        throw new UnauthorizedException('Token không hợp lệ');
+      }
+
       request.user = {
         userId: decoded.userId,
         email: decoded.email,

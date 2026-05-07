@@ -16,7 +16,7 @@ import { JwtService } from '@nestjs/jwt';
 import { TokenService } from './token.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Token, TokenDocument } from '../dtos/token.dto';
+import { Token, TokenDocument } from '../schemas/token.schema';
 import { VerifyService } from '../../verify/services/verify.service';
 import { User } from '../../users/schemas/users.schema';
 import { RequestPasswordResetDto, ResetPasswordWithTokenDto, ResetPasswordWithOtpDto, VerifyOtpDto } from '../dtos/password-reset.dto';

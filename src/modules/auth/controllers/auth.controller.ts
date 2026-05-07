@@ -16,6 +16,7 @@ import {
   UnauthorizedException,
   Req,
   Res,
+  Headers,
 } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { UsersService } from '../../users/services/users.service';
@@ -111,12 +112,16 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   @UseGuards(JwtAuthGuard)
-  async logout(@Request() req: RequestWithUser) {
+  async logout(
+    @Request() req: RequestWithUser,
+    @Headers('authorization') authorization?: string,
+  ) {
     const userId = req.user?.userId;
+    const token = authorization?.split(' ')[1];
     this.logger.log(`🚪 Đang đăng xuất người dùng với ID: ${userId}`);
 
     try {
-      const result = await this.authService.logout(userId);
+      const result = await this.authService.logout(token);
       this.logger.log(`✅ Đăng xuất thành công cho ID: ${userId}`);
       return result;
     } catch (error) {

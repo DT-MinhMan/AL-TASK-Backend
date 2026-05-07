@@ -166,11 +166,15 @@ export class AuthService {
   /**
    * 🚪 Đăng xuất người dùng
    */
-  async logout(userId: string): Promise<{ message: string }> {
-    this.logger.log(`🚪 Đang đăng xuất người dùng với ID: ${userId}`);
+  async logout(token?: string): Promise<{ message: string }> {
+    this.logger.log('Đang đăng xuất phiên hiện tại');
+    if (!token) {
+      throw new UnauthorizedException('Token không hợp lệ hoặc thiếu');
+    }
+
     try {
-      await this.tokenModel.updateMany({ userId }, { status: false });
-      this.logger.log(`✅ Đăng xuất thành công cho ID: ${userId}`);
+      await this.tokenModel.updateOne({ token }, { status: false });
+      this.logger.log('Đăng xuất phiên hiện tại thành công');
       return { message: 'Đăng xuất thành công' };
     } catch (error: unknown) {
       const err = error as Error;

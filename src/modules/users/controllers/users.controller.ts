@@ -38,9 +38,9 @@ export class UsersController {
     return await this.usersService.getAllUsers();
   }
 
-  // @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  // @RequirePermission('users', 'read')
-  // @Roles('admin', 'manager', 'staff')
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
+  @RequirePermission('users', 'read')
+  @Roles('admin', 'manager', 'staff')
   @Get(':id')
   async getUserById(@Param('id') id: string) {
     return await this.usersService.getUserById(id);

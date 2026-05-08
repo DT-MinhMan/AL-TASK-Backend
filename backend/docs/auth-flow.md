@@ -1,22 +1,21 @@
-# Luong hoat dong Auth
+# Auth Flow
 
-Tai lieu nay mo ta cach module auth dang chay trong backend NestJS, di theo tung request tu controller, service, schema, guard va database.
+Tai lieu nay tom tat luong Authentication hien tai cua backend va cac phan chinh da duoc cap nhat de frontend co the tich hop dung.
 
-## 1. Cac file chinh
+## Cac phan chinh da on dinh
 
-| File | Vai tro |
-| --- | --- |
-| `src/modules/auth/controllers/auth.controller.ts` | Nhan request auth: register, login, logout, profile, password reset, Google auth. |
-| `src/modules/auth/services/auth.service.ts` | Xu ly logic auth: tao user, kiem tra password, tao JWT, luu token, logout, reset password. |
-| `src/modules/auth/guards/jwt-auth.guard.ts` | Bao ve route can dang nhap. Guard verify JWT va kiem tra token con active trong DB. |
-| `src/modules/auth/services/token.service.ts` | Service lam viec voi collection token: tim token active, invalidate token. |
-| `src/modules/auth/schemas/token.schema.ts` | Schema MongoDB luu token, userId, email, status. |
-| `src/modules/auth/dtos/auth.dto.ts` | DTO cho register/login/update profile. Register chi nhan `email` va `password`. |
-| `src/modules/users/services/users.service.ts` | Tao user, hash password, tim user theo email/id, update user. |
-| `src/modules/users/schemas/users.schema.ts` | Schema MongoDB cua user. |
-| `src/modules/auth/auth.module.ts` | Noi cac dependency cua auth: JwtModule, TokenModule, UsersModule, Mongoose models. |
+- `POST /auth/register`: chi nhan `email` va `password`, role mac dinh la `user`.
+- Admin tao qua seed script, khong tao qua register public.
+- Password rule da chuan hoa manh hon.
+- Global `ValidationPipe` da bat `whitelist`, `forbidNonWhitelisted`, `transform`.
+- `POST /auth/login`: tra JWT token.
+- `JwtAuthGuard`: verify JWT va check token con active trong database.
+- `POST /auth/logout`: revoke dung token hien tai, khong logout tat ca thiet bi.
+- `PUT /auth/update` va `PUT /users/me`: dung DTO profile, khong cho user tu update `role`.
+- `GET /users/:id`: da khoa bang guard/role/permission.
+- Password reset DTO da co validation.
 
-## 2. Luong register account thuong
+## 1. Register
 
 Endpoint:
 
@@ -29,45 +28,28 @@ Body hop le:
 ```json
 {
   "email": "user@example.com",
-  "password": "654321"
+  "password": "StrongPass123"
 }
 ```
 
-Duong di cua code:
+Duong di:
 
-1. `auth.controller.ts`
-   - Method `register(@Body() registerDto: RegisterDto)` nhan body.
-   - Body duoc map theo `RegisterDto`.
-
-2. `auth.dto.ts`
-   - `RegisterDto` chi khai bao `email` va `password`.
-   - Khong con field `role` trong public register.
-
-3. `auth.service.ts`
-   - Method `register(registerDto)` kiem tra email da ton tai chua bang `usersService.findByEmail()`.
-   - Neu email da co, throw `ConflictException`.
-   - Neu chua co, goi `usersService.createUser()` voi data:
-
-```ts
-{
-  email: registerDto.email,
-  password: registerDto.password,
-  role: 'user',
-  status: 'active'
-}
+```txt
+auth.controller.ts -> RegisterDto -> auth.service.ts -> users.service.ts -> users.schema.ts
 ```
 
-4. `users.service.ts`
-   - Method `createUser()` hash password bang `bcrypt`.
-   - Sau do goi repository de save user vao MongoDB.
+Chi tiet:
 
-Ket qua: moi account tao tu public register luon la `role: 'user'`. Client gui them `role: 'admin'` cung khong duoc service su dung.
+- `RegisterDto` chi cho phep `email` va `password`.
+- `AuthService.register()` tu gan `role: 'user'` va `status: 'active'`.
+- `UsersService.createUser()` hash password bang `bcrypt` truoc khi luu database.
+- Neu client gui them field thua nhu `role`, global `ValidationPipe` se tra `400`.
 
-## 3. Luong tao admin
+## 2. Tao admin
 
 Admin khong duoc tao qua public register.
 
-Admin duoc tao bang seed script:
+Dung seed script:
 
 ```powershell
 $env:ADMIN_EMAIL="admin@example.com"
@@ -76,22 +58,9 @@ $env:ADMIN_FULL_NAME="System Admin"
 npm run seed:admin
 ```
 
-Duong di cua code:
+Script doc `DB_CONNECTION_STRING` tu `.env`, tao hoac update account admin theo email duoc cau hinh.
 
-1. `package.json`
-   - Script `seed:admin` chay file `scripts/seed-admin.ts`.
-
-2. `scripts/seed-admin.ts`
-   - Doc `DB_CONNECTION_STRING` tu `.env`.
-   - Doc `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FULL_NAME` tu environment variables.
-   - Yeu cau password admin toi thieu 12 ky tu.
-   - Ket noi MongoDB.
-   - Neu email da ton tai thi update user thanh admin.
-   - Neu email chua ton tai thi tao moi user admin.
-
-Ket qua: viec tao admin chi dien ra trong terminal/server environment, khong phoi endpoint tao admin ra internet.
-
-## 4. Luong login
+## 3. Login
 
 Endpoint:
 
@@ -104,60 +73,31 @@ Body:
 ```json
 {
   "email": "user@example.com",
-  "password": "654321"
+  "password": "StrongPass123"
 }
 ```
 
-Duong di cua code:
+Duong di:
 
-1. `auth.controller.ts`
-   - Method `login(@Body() loginDto: LoginDto)` nhan email/password.
-   - Goi `authService.login(loginDto)`.
-
-2. `auth.service.ts`
-   - Tim user bang `usersService.findByEmail(loginDto.email)`.
-   - Neu khong co user, throw `UnauthorizedException`.
-   - Neu user khong co password, xem nhu account Google va yeu cau login bang Google.
-   - So sanh password bang `bcrypt.compare(loginDto.password, user.password)`.
-   - Neu password sai, throw `UnauthorizedException`.
-   - Neu dung, goi `createAndSaveToken()`.
-
-3. `auth.service.ts` method `createAndSaveToken()`
-   - Tao JWT payload:
-
-```ts
-{
-  userId,
-  email,
-  role,
-  fullName,
-  avatar
-}
+```txt
+auth.controller.ts -> LoginDto -> auth.service.ts -> users.service.ts -> bcrypt -> JwtService -> token.schema.ts
 ```
 
-   - Sign JWT bang `JwtService`.
-   - Luu token vua tao vao collection `Token` voi `status: true`.
+Chi tiet:
 
-4. `token.schema.ts`
-   - MongoDB luu:
+- Tim user bang email.
+- So sanh password bang `bcrypt.compare`.
+- Tao JWT payload gom `userId`, `email`, `role`, `fullName`, `avatar`.
+- Luu JWT vao collection `Token` voi `status: true`.
+- Response tra token cho frontend.
 
-```ts
-{
-  userId,
-  email,
-  token,
-  deviceInfo: 'Web',
-  status: true
-}
-```
-
-Ket qua response login co `token`. Frontend can luu token nay va gui trong header:
+Frontend gui token trong cac request protected:
 
 ```http
 Authorization: Bearer <token>
 ```
 
-## 5. Luong request vao route can dang nhap
+## 4. Protected Request
 
 Vi du:
 
@@ -166,52 +106,20 @@ GET /auth/me
 Authorization: Bearer <token>
 ```
 
-Duong di cua code:
+Duong di:
 
-1. Controller gan guard
-
-```ts
-@UseGuards(JwtAuthGuard)
+```txt
+Controller @UseGuards(JwtAuthGuard) -> jwt-auth.guard.ts -> JwtService.verify -> token.service.ts -> token.schema.ts -> controller handler
 ```
 
-2. `jwt-auth.guard.ts`
-   - Doc header `Authorization`.
-   - Neu khong co `Bearer <token>`, throw `UnauthorizedException`.
-   - Goi `jwtService.verify(token)` de kiem tra:
-     - token co dung chu ky khong
-     - token da het han chua
-   - Sau khi JWT hop le, guard tiep tuc goi:
+`JwtAuthGuard` kiem tra 2 lop:
 
-```ts
-this.tokenService.findToken(token)
-```
+1. JWT hop le va chua het han.
+2. Token ton tai trong DB voi `status: true`.
 
-3. `token.service.ts`
-   - Method `findToken(token)` query MongoDB:
+Neu token da logout/revoked, guard se reject `401` du JWT van chua het han.
 
-```ts
-{ token, status: true }
-```
-
-4. `jwt-auth.guard.ts`
-   - Neu khong tim thay token active, reject request.
-   - Neu token active co `userId` khong khop voi JWT payload, reject request.
-   - Neu hop le, gan user vao request:
-
-```ts
-request.user = {
-  userId: decoded.userId,
-  email: decoded.email,
-  role: decoded.role
-}
-```
-
-5. Controller phia sau guard
-   - Co the doc `req.user.userId`, `req.user.email`, `req.user.role`.
-
-Ket qua: token phai dong thoi hop le ve JWT va con active trong DB moi duoc truy cap route protected.
-
-## 6. Luong logout va token revocation
+## 5. Logout
 
 Endpoint:
 
@@ -220,69 +128,71 @@ POST /auth/logout
 Authorization: Bearer <token>
 ```
 
-Duong di cua code:
+Duong di:
 
-1. `auth.controller.ts`
-   - Route logout co `@UseGuards(JwtAuthGuard)`.
-   - Nghia la chi token con active moi logout duoc.
-   - Sau guard, controller lay Bearer token hien tai tu header `Authorization`.
-   - Goi `authService.logout(token)`.
+```txt
+auth.controller.ts -> JwtAuthGuard -> auth.service.logout(token) -> token.schema.ts
+```
 
-2. `auth.service.ts`
-   - Method `logout(token)` chi update token cua phien hien tai:
+Chi tiet:
+
+- Route logout bat buoc qua `JwtAuthGuard`.
+- Controller lay Bearer token hien tai tu header `Authorization`.
+- `AuthService.logout(token)` update dung token hien tai:
 
 ```ts
 await this.tokenModel.updateOne({ token }, { status: false });
 ```
 
-3. `token.schema.ts`
-   - Token cua phien hien tai chuyen tu:
+Ket qua:
+
+- Token vua logout khong dung lai duoc.
+- Token khac cua cung user tren browser/thiet bi khac van con active.
+
+## 6. Update Profile
+
+Endpoint:
+
+```http
+PUT /auth/update
+PUT /users/me
+```
+
+Hai endpoint nay dung DTO profile khong co field `role`.
+
+Neu client gui:
+
+```json
+{
+  "role": "admin"
+}
+```
+
+backend se tra `400` vi `forbidNonWhitelisted` dang bat.
+
+Route admin update user rieng van co DTO khac de phuc vu quan tri.
+
+## 7. User Detail
+
+Endpoint:
+
+```http
+GET /users/:id
+```
+
+Endpoint nay da duoc khoa bang:
 
 ```ts
-status: true
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
+@RequirePermission('users', 'read')
+@Roles('admin', 'manager', 'staff')
 ```
 
-sang:
+Nguoi dung public hoac user khong co quyen se khong xem duoc thong tin user theo id.
 
-```ts
-status: false
-```
+## 8. Password Reset
 
-4. Request sau logout
-   - Frontend neu tiep tuc gui token cu vao route protected.
-   - `JwtAuthGuard` van co the verify JWT thanh cong neu token chua het han.
-   - Nhung guard se query DB voi `{ token, status: true }`.
-   - Token da bi set `status: false`, nen guard reject `401`.
-
-Ket qua: logout bay gio co hieu luc that su. Token da logout/revoked khong con dung duoc nua, ke ca JWT van chua het han.
-
-Neu cung mot account dang login tren nhieu thiet bi/trinh duyet, logout o mot noi chi revoke token cua noi do. Cac token active khac van tiep tuc dung duoc.
-
-## 7. Khac nhau giua JWT expiry va token revocation
-
-JWT expiry:
-
-- Duoc cau hinh trong `auth.module.ts` bang `JWT_EXPIRES_IN`.
-- Neu JWT het han, `jwtService.verify(token)` se fail.
-- Khong can DB cung reject duoc.
-
-Token revocation:
-
-- Duoc quan ly trong MongoDB collection `Token`.
-- Khi logout, token bi set `status: false`.
-- JWT co the chua het han, nhung guard van reject vi DB khong con token active.
-
-Hai lop nay bo sung cho nhau:
-
-```txt
-JWT verify pass + DB token active => duoc vao
-JWT verify fail => bi reject
-JWT verify pass + DB token inactive => bi reject
-```
-
-## 8. Luong password reset
-
-Endpoint chinh:
+Endpoints:
 
 ```http
 POST /auth/request-password-reset
@@ -291,67 +201,44 @@ POST /auth/reset-password/token
 POST /auth/reset-password/otp
 ```
 
-Duong di tong quat:
+DTO password reset da co validation:
 
-1. `auth.controller.ts`
-   - Nhan request password reset va goi service tuong ung.
+- Email phai dung format.
+- Reset method chi nhan `link` hoac `otp`.
+- OTP phai dung 6 chu so.
+- Password moi phai theo rule manh: it nhat 8 ky tu, co chu hoa, chu thuong va so.
 
-2. `auth.service.ts`
-   - `requestPasswordReset()` tim user theo email.
-   - Tao reset token JWT loai `password-reset`, expires sau 15 phut.
-   - Tao OTP 6 so, expires sau 15 phut.
-   - Luu reset token vao collection `Token`.
-   - Luu OTP vao collection `Otp`.
-   - Gui email qua `VerifyService`.
+## 9. ValidationPipe
 
-3. Reset bang token
-   - `resetPasswordWithToken()` verify reset token.
-   - Kiem tra token con `status: true` trong DB.
-   - Hash password moi.
-   - Update password user.
-   - Set reset token `status: false` de khong dung lai duoc.
+Global validation trong `src/main.ts`:
 
-4. Reset bang OTP
-   - `resetPasswordWithOtp()` tim OTP chua dung, chua het han.
-   - Hash password moi.
-   - Update password user.
-   - Set OTP `isUsed: true`.
-
-## 9. Tom tat luong bao mat hien tai
-
-Register:
-
-```txt
-auth.controller.ts -> auth.dto.ts -> auth.service.ts -> users.service.ts -> users.schema.ts
+```ts
+app.useGlobalPipes(
+  new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+  }),
+);
 ```
 
-Login:
+Tac dung:
+
+- `whitelist`: chi chap nhan field co khai bao trong DTO.
+- `forbidNonWhitelisted`: gui field thua thi tra `400`.
+- `transform`: transform input theo DTO/type metadata khi co the.
+
+## 10. Trang thai hien tai
+
+Authentication hien tai da san sang de frontend tich hop cac flow chinh:
 
 ```txt
-auth.controller.ts -> auth.service.ts -> users.service.ts -> bcrypt -> JwtService -> token.schema.ts
+register -> login -> luu token -> goi API protected -> logout -> reset password
 ```
 
-Protected request:
+Phan tiep theo nen lam la Permission/RBAC audit:
 
-```txt
-Controller @UseGuards -> jwt-auth.guard.ts -> JwtService.verify -> token.service.ts -> token.schema.ts -> controller handler
-```
-
-Logout current session:
-
-```txt
-auth.controller.ts -> jwt-auth.guard.ts -> auth.service.logout -> token.schema.ts status=false
-```
-
-Admin seed:
-
-```txt
-package.json seed:admin -> scripts/seed-admin.ts -> users.schema.ts
-```
-
-## 10. Diem nen lam tiep
-
-1. Bat `ValidationPipe` voi `whitelist: true` va `forbidNonWhitelisted: true`.
-2. Chuan hoa password rule giua register va create user.
-3. Them validator cho password reset DTO.
-4. Neu can tinh nang "dang xuat tat ca thiet bi", co the tao endpoint rieng goi `TokenService.invalidateAllTokensForUser(userId)`.
+- Kiem tra endpoint nao public co chu dich.
+- Kiem tra endpoint nao can `JwtAuthGuard`, `RolesGuard`, `PermissionGuard`.
+- Chuan hoa permission resource/action.
+- Kiem tra route nao dang chi co auth nhung thieu authorization chi tiet.

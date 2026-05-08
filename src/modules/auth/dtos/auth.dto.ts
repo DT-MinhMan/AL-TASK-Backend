@@ -1,66 +1,72 @@
 import {
   IsEmail,
   IsNotEmpty,
-  MinLength,
   IsOptional,
   IsString,
   IsIn,
+  Matches,
 } from 'class-validator';
 
 export class RegisterDto {
-  @IsEmail({}, { message: 'Email khong hop le.' })
-  @IsNotEmpty({ message: 'Email khong duoc de trong.' })
+  @IsEmail({}, { message: 'Email không hợp lệ.' })
+  @IsNotEmpty({ message: 'Email không được để trống.' })
   email!: string;
 
-  @IsNotEmpty({ message: 'Mat khau khong duoc de trong.' })
-  @MinLength(6, { message: 'Mat khau phai co it nhat 6 ky tu.' })
+  @IsNotEmpty({ message: 'Mật khẩu không được để trống.' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\W]{8,}$/, {
+    message:
+      'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và số',
+  })
   password!: string;
 }
 
 export class LoginDto {
-  @IsEmail({}, { message: 'Email khong hop le.' })
+  @IsEmail({}, { message: 'Email không hợp lệ.' })
   email!: string;
 
-  @IsNotEmpty({ message: 'Mat khau khong duoc de trong.' })
+  @IsNotEmpty({ message: 'Mật khẩu không được để trống.' })
   password!: string;
 }
 
 export class UpdateProfileDto {
   @IsOptional()
-  @IsString({ message: 'Ten day du phai la chuoi ky tu.' })
+  @IsString({ message: 'Tên đầy đủ phải là chuỗi ký tự.' })
   fullName?: string;
 
   @IsOptional()
-  @IsEmail({}, { message: 'Email khong hop le.' })
+  @IsEmail({}, { message: 'Email không hợp lệ.' })
   email?: string;
 
   @IsOptional()
-  @MinLength(6, { message: 'Mat khau phai co it nhat 6 ky tu.' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\W]{8,}$/, {
+    message:
+      'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và số',
+  })
   password?: string;
 
   @IsOptional()
-  @IsString({ message: 'URL avatar phai la chuoi ky tu.' })
+  @IsString({ message: 'URL avatar phải là chuỗi ký tự.' })
   avatarUrl?: string;
 
   @IsOptional()
-  @IsString({ message: 'So dien thoai phai la chuoi ky tu.' })
+  @IsString({ message: 'Số điện thoại phải là chuỗi ký tự.' })
   phoneNumber?: string;
 }
 
 export class UpdateUserDto extends UpdateProfileDto {
   @IsOptional()
-  @IsString({ message: 'Role phai la kieu chuoi.' })
+  @IsString({ message: 'Role phải là kiểu chuỗi.' })
   @IsIn(['user', 'admin', 'staff', 'manager', 'technician'], {
     message:
-      'Role phai la mot trong cac gia tri: user, admin, staff, manager, technician',
+      'Role phải là một trong các giá trị: user, admin, staff, manager, technician',
   })
   role?: string;
 }
 
 export class VerifyEmailDto {
-  @IsEmail({}, { message: 'Email khong hop le.' })
+  @IsEmail({}, { message: 'Email không hợp lệ.' })
   email!: string;
 
-  @IsNotEmpty({ message: 'Ma xac thuc khong duoc de trong.' })
+  @IsNotEmpty({ message: 'Mã xác thực không được để trống.' })
   code!: string;
 }

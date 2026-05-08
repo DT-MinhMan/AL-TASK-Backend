@@ -1,0 +1,205 @@
+<div style="display: flex; flex-direction: column; gap: 20px; padding: 16px;">
+  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+    <button onclick="activeFlow = 'register'; renderFlow()" style="padding: 8px 16px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: transparent; cursor: pointer; font-size: 14px;" id="btn-register">📝 Register</button>
+    <button onclick="activeFlow = 'login'; renderFlow()" style="padding: 8px 16px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: transparent; cursor: pointer; font-size: 14px;" id="btn-login">🔐 Login</button>
+    <button onclick="activeFlow = 'protected'; renderFlow()" style="padding: 8px 16px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: transparent; cursor: pointer; font-size: 14px;" id="btn-protected">🛡️ Protected Request</button>
+    <button onclick="activeFlow = 'logout'; renderFlow()" style="padding: 8px 16px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: transparent; cursor: pointer; font-size: 14px;" id="btn-logout">🚪 Logout</button>
+    <button onclick="activeFlow = 'admin'; renderFlow()" style="padding: 8px 16px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: transparent; cursor: pointer; font-size: 14px;" id="btn-admin">👑 Create Admin</button>
+  </div>
+
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 16px; border: 0.5px solid var(--color-border-tertiary);">
+    <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 500;">Endpoint & Payload</h3>
+    <div id="endpoint-info"></div>
+  </div>
+
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 16px; border: 0.5px solid var(--color-border-tertiary);">
+    <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 500;">Code Path</h3>
+    <div id="code-path" style="font-size: 13px; line-height: 1.8; font-family: var(--font-mono); color: var(--color-text-secondary);"></div>
+  </div>
+
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 16px; border: 0.5px solid var(--color-border-tertiary);">
+    <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 500;">Database Impact</h3>
+    <div id="db-impact"></div>
+  </div>
+
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 16px; border: 0.5px solid var(--color-border-tertiary);">
+    <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 500;">Key Points</h3>
+    <ul style="margin: 0; padding-left: 20px; color: var(--color-text-secondary); font-size: 13px; line-height: 1.8;">
+      <li id="key-point-1"></li>
+      <li id="key-point-2"></li>
+      <li id="key-point-3"></li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const flows = {
+  register: {
+    endpoint: 'POST /auth/register',
+    payload: `{
+  "email": "user@example.com",
+  "password": "654321"
+}`,
+    codePath: `1. auth.controller.ts → register()
+2. auth.dto.ts → RegisterDto validation
+3. auth.service.ts → register(registerDto)
+   - Check email exists: findByEmail()
+   - Create user: usersService.createUser()
+4. users.service.ts → createUser()
+   - Hash password with bcrypt
+   - Save to DB`,
+    dbImpact: `
+<div style="display: grid; gap: 8px;">
+  <div style="padding: 8px; background: var(--color-background-info); border-radius: var(--border-radius-md); font-size: 13px;">
+    <strong style="color: var(--color-text-info);">users collection</strong>
+    <div style="color: var(--color-text-info); opacity: 0.8; margin-top: 4px;">✓ Insert new user with role='user', status='active'</div>
+  </div>
+</div>
+    `,
+    keyPoints: [
+      'Public register luôn tạo role=user (không thể gửi role=admin)',
+      'Password được hash bằng bcrypt trước khi lưu',
+      'Email phải unique (kiểm tra trước khi tạo)'
+    ]
+  },
+  login: {
+    endpoint: 'POST /auth/login',
+    payload: `{
+  "email": "user@example.com",
+  "password": "654321"
+}`,
+    codePath: `1. auth.controller.ts → login()
+2. auth.service.ts → login(loginDto)
+   - Find user: usersService.findByEmail()
+   - Check password: bcrypt.compare()
+   - Create token: createAndSaveToken()
+3. JwtService.sign()
+   - Payload: userId, email, role, fullName, avatar
+4. token.service.ts → save to Token collection`,
+    dbImpact: `
+<div style="display: grid; gap: 8px;">
+  <div style="padding: 8px; background: var(--color-background-info); border-radius: var(--border-radius-md); font-size: 13px;">
+    <strong style="color: var(--color-text-info);">Token collection</strong>
+    <div style="color: var(--color-text-info); opacity: 0.8; margin-top: 4px;">✓ Insert {userId, email, token, status: true}</div>
+  </div>
+</div>
+    `,
+    keyPoints: [
+      'Response chứa JWT token → Frontend lưu và gửi qua header Authorization',
+      'Token được lưu vào DB với status=true (để sau này verify active state)',
+      'JWT có expiry time được cấu hình ở auth.module.ts (JWT_EXPIRES_IN)'
+    ]
+  },
+  protected: {
+    endpoint: 'GET /auth/me (hoặc bất kỳ route dùng @UseGuards(JwtAuthGuard))',
+    payload: `Header:
+Authorization: Bearer <token>`,
+    codePath: `1. Controller @UseGuards(JwtAuthGuard)
+2. jwt-auth.guard.ts → canActivate()
+   - Extract token từ header
+   - Verify JWT: jwtService.verify(token)
+   - Check token active: tokenService.findToken(token)
+3. tokenService.ts → query {token, status: true}
+4. Controller có req.user = {userId, email, role}`,
+    dbImpact: `
+<div style="display: grid; gap: 8px;">
+  <div style="padding: 8px; background: var(--color-background-info); border-radius: var(--border-radius-md); font-size: 13px;">
+    <strong style="color: var(--color-text-info);">Token collection</strong>
+    <div style="color: var(--color-text-info); opacity: 0.8; margin-top: 4px;">✓ Query {token, status: true} → validate request</div>
+  </div>
+</div>
+    `,
+    keyPoints: [
+      'JWT phải hợp lệ về chữ ký + expiry time',
+      'Token phải còn status=true trong DB (không bị logout)',
+      'Hai điều kiện này phải cùng đúng mới cho vào route'
+    ]
+  },
+  logout: {
+    endpoint: 'POST /auth/logout',
+    payload: `Header:
+Authorization: Bearer <token>`,
+    codePath: `1. Controller @UseGuards(JwtAuthGuard)
+   - Validate token (như Protected Request)
+2. auth.service.ts → logout(userId)
+   - Update token: {status: false} where userId
+3. tokenModel.updateMany()
+   - Set status=false cho tất cả token của user`,
+    dbImpact: `
+<div style="display: grid; gap: 8px;">
+  <div style="padding: 8px; background: var(--color-background-info); border-radius: var(--border-radius-md); font-size: 13px;">
+    <strong style="color: var(--color-text-info);">Token collection</strong>
+    <div style="color: var(--color-text-info); opacity: 0.8; margin-top: 4px;">✓ Update {status: false} → Logout tất cả thiết bị</div>
+  </div>
+</div>
+    `,
+    keyPoints: [
+      'Logout đặt status=false cho TẤT CẢ token của user',
+      'JWT cũ vẫn hợp lệ (chưa hết hạn) nhưng guard reject vì DB status=false',
+      'Nếu cần logout một token → Cần update logic (hiện tại logout=logout all devices)'
+    ]
+  },
+  admin: {
+    endpoint: 'Terminal command:',
+    payload: `$env:ADMIN_EMAIL="admin@example.com"
+$env:ADMIN_PASSWORD="StrongPassword123!"
+$env:ADMIN_FULL_NAME="System Admin"
+npm run seed:admin`,
+    codePath: `1. package.json script: seed:admin
+2. scripts/seed-admin.ts
+   - Connect MongoDB
+   - Read env vars
+   - Kiểm tra password ≥12 ký tự
+   - Check email exists → update to admin
+   - Else → create new admin user`,
+    dbImpact: `
+<div style="display: grid; gap: 8px;">
+  <div style="padding: 8px; background: var(--color-background-info); border-radius: var(--border-radius-md); font-size: 13px;">
+    <strong style="color: var(--color-text-info);">users collection</strong>
+    <div style="color: var(--color-text-info); opacity: 0.8; margin-top: 4px;">✓ Create/Update user với role='admin'</div>
+  </div>
+</div>
+    `,
+    keyPoints: [
+      'Admin KHÔNG thể tạo qua public register endpoint',
+      'Chỉ chạy qua script → Bảo mật (không expose admin endpoint)',
+      'Password admin phải ≥12 ký tự'
+    ]
+  }
+};
+
+let activeFlow = 'register';
+
+function renderFlow() {
+  const flow = flows[activeFlow];
+  
+  // Update active button
+  document.querySelectorAll('button[id^="btn-"]').forEach(btn => {
+    btn.style.background = '';
+    btn.style.borderColor = 'var(--color-border-tertiary)';
+  });
+  document.getElementById(`btn-${activeFlow}`).style.background = 'var(--color-background-secondary)';
+  
+  // Update endpoint
+  const endpointDiv = document.getElementById('endpoint-info');
+  endpointDiv.innerHTML = `
+    <div style="font-family: var(--font-mono); font-size: 13px; background: var(--color-background-primary); padding: 8px 12px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-tertiary); margin-bottom: 8px;">
+      <div style="color: var(--color-text-info); margin-bottom: 4px; font-weight: 500;">${flow.endpoint}</div>
+      <pre style="margin: 0; overflow-x: auto; color: var(--color-text-secondary); white-space: pre-wrap; word-wrap: break-word;">${flow.payload}</pre>
+    </div>
+  `;
+  
+  // Update code path
+  document.getElementById('code-path').innerHTML = flow.codePath.replace(/\n/g, '<br>');
+  
+  // Update DB impact
+  document.getElementById('db-impact').innerHTML = flow.dbImpact;
+  
+  // Update key points
+  flow.keyPoints.forEach((point, i) => {
+    document.getElementById(`key-point-${i+1}`).textContent = point;
+  });
+}
+
+renderFlow();
+</script>

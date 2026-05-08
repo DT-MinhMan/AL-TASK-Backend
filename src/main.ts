@@ -29,7 +29,13 @@ async function bootstrap() {
     });
 
     // ? D�ng ValidationPipe d? ki?m tra d? li?u d?u v�o
-    app.useGlobalPipes(new ValidationPipe());
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
 
     // ? Cho ph�p truy c?p t?p tinh trong thu m?c `uploads/`
     app.useStaticAssets(join(__dirname, '..', 'uploads'), {

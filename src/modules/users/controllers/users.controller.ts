@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Request, No
 import { UsersService } from '../services/users.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CreateUsersDto } from '../dtos/create-users.dto';
-import { UpdateUsersDto } from '../dtos/update-users.dto';
+import { UpdateUserProfileDto, UpdateUsersDto } from '../dtos/update-users.dto';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { PermissionGuard } from 'src/modules/permissions/guards/permission.guard';
@@ -22,11 +22,7 @@ export class UsersController {
   @Roles('admin', 'manager')
   @RequirePermission('users', 'update')
   @Put('me')
-  async updateProfile(@Request() req, @Body() updateUserDto: UpdateUsersDto) {
-    if (updateUserDto.role && req.user.role === 'user') {
-      throw new BadRequestException('Bạn không có quyền thay đổi role');
-    }
-
+  async updateProfile(@Request() req, @Body() updateUserDto: UpdateUserProfileDto) {
     return await this.usersService.updateUser(req.user.userId, updateUserDto);
   }
 

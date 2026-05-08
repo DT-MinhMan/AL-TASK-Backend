@@ -63,3 +63,43 @@ export class UpdateUsersDto {
   @IsUrl()
   avatar?: string;
 }
+
+export class UpdateUserProfileDto {
+  @IsOptional()
+  @IsString()
+  fullName?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\W]{8,}$/, {
+    message: 'Máº­t kháº©u pháº£i cÃ³ Ã­t nháº¥t 8 kÃ½ tá»±, bao gá»“m chá»¯ hoa, chá»¯ thÆ°á»ng vÃ  sá»‘',
+  })
+  password?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  birthday?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsEnum(['male', 'female', 'other'], {
+    message: 'Giá»›i tÃ­nh khÃ´ng há»£p lá»‡',
+  })
+  gender?: string;
+
+  @IsOptional()
+  @IsUrl()
+  avatar?: string;
+}

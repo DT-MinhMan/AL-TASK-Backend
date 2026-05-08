@@ -20,7 +20,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { UsersService } from '../../users/services/users.service';
-import { RegisterDto, LoginDto, UpdateUserDto } from '../dtos/auth.dto';
+import { RegisterDto, LoginDto, UpdateProfileDto } from '../dtos/auth.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { GoogleAuthGuard } from '../guards/google-auth.guard';
 import { Response } from 'express';
@@ -230,7 +230,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async updateUser(
     @Request() req: RequestWithUser,
-    @Body() updateUserDto: UpdateUserDto,
+    @Body() updateUserDto: UpdateProfileDto,
   ) {
     const userId = req.user.userId;
     this.logger.log(`✏️ Đang cập nhật thông tin người dùng với ID: ${userId}`);

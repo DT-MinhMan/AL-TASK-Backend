@@ -25,7 +25,7 @@ export class LoginDto {
   password!: string;
 }
 
-export class UpdateUserDto {
+export class UpdateProfileDto {
   @IsOptional()
   @IsString({ message: 'Ten day du phai la chuoi ky tu.' })
   fullName?: string;
@@ -45,7 +45,9 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString({ message: 'So dien thoai phai la chuoi ky tu.' })
   phoneNumber?: string;
+}
 
+export class UpdateUserDto extends UpdateProfileDto {
   @IsOptional()
   @IsString({ message: 'Role phai la kieu chuoi.' })
   @IsIn(['user', 'admin', 'staff', 'manager', 'technician'], {

@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import * as express from 'express';
+import * as cookieParser from 'cookie-parser';
 import { join } from 'path';
 import mongoose from 'mongoose';
 
@@ -16,16 +17,19 @@ async function bootstrap() {
 
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-    // ? H? tr? d? li?u l?n
+    // ✅ Hỗ trợ dữ liệu lớn
     app.use(express.json({ limit: '50mb' }));
     app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-    // ? B?t CORS cho frontend g?i API
+    // ✅ Hỗ trợ Cookie Parser (cho HttpOnly Cookie Auth)
+    app.use(cookieParser());
+
+    // ✅ Bật CORS cho frontend gửi API với credentials
     app.enableCors({
       origin: process.env.FRONTEND_URL,
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
       allowedHeaders: 'Content-Type, Authorization',
-      credentials: true,
+      credentials: true, // ✅ Cho phép gửi cookies
     });
 
     // ? D�ng ValidationPipe d? ki?m tra d? li?u d?u v�o

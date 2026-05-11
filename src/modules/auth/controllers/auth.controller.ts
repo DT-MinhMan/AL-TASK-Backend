@@ -28,6 +28,7 @@ import { ConfigService } from '@nestjs/config';
 import { RequestPasswordResetDto, ResetPasswordWithTokenDto, ResetPasswordWithOtpDto, VerifyOtpDto } from '../dtos/password-reset.dto';
 import { PermissionsService } from '../../permissions/services/permissions.service';
 import { Document } from 'mongoose';
+import { getCookieOptions, JWT_COOKIE_NAME } from '../../../config/cookie.config';
 
 // Interface để định nghĩa kiểu dữ liệu của req.user
 interface RequestWithUser extends Request {
@@ -36,6 +37,7 @@ interface RequestWithUser extends Request {
     email?: string;
     role?: string;
   };
+  cookies?: Record<string, string>;
 }
 
 interface AuthError extends Error {
@@ -88,19 +90,30 @@ export class AuthController {
     }
   }
 
-  // 🔐 Đăng nhập người dùng
+  // 🔐 Đăng nhập người dùng (HttpOnly Cookie)
   @HttpCode(HttpStatus.OK)
   @Post('login')
-  async login(@Body() loginDto: LoginDto) {
+  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     this.logger.log('🔐 Đang xử lý đăng nhập...');
     this.logger.debug(`Thông tin đăng nhập: ${loginDto.email}`);
 
     try {
       const result = await this.authService.login(loginDto);
+      
+      // ✅ Set JWT vào HttpOnly Cookie
+      const cookieOptions = getCookieOptions(this.configService);
+      res.cookie(JWT_COOKIE_NAME, result.token, cookieOptions);
+
       this.logger.log(
         `✅ Đăng nhập thành công cho email: ${loginDto.email} với vai trò ${result.user.role}`,
       );
-      return result;
+
+      // ❌ Không return token trong response (nó đã được set trong cookie)
+      return {
+        success: result.success,
+        message: result.message,
+        user: result.user,
+      };
     } catch (error) {
       const err = error as AuthError;
       this.logger.error(`❌ Lỗi khi đăng nhập: ${err.message}`, err.stack);
@@ -108,20 +121,35 @@ export class AuthController {
     }
   }
 
-  // 🚪 Đăng xuất người dùng
+  // 🚪 Đăng xuất người dùng (Clear HttpOnly Cookie)
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   async logout(
     @Request() req: RequestWithUser,
-    @Headers('authorization') authorization?: string,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const userId = req.user?.userId;
-    const token = authorization?.split(' ')[1];
+    
+    // ✅ Lấy token từ cookie (hoặc fallback từ header)
+    const tokenFromCookie = req.cookies?.[JWT_COOKIE_NAME];
+    const authHeader = req.headers.get?.('authorization') || (req.headers as any)['authorization'];
+    const tokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
+    const token = tokenFromCookie || tokenFromHeader;
+
     this.logger.log(`🚪 Đang đăng xuất người dùng với ID: ${userId}`);
 
     try {
       const result = await this.authService.logout(token);
+      
+      // ✅ Xóa cookie (set maxAge = 0)
+      res.clearCookie(JWT_COOKIE_NAME, {
+        httpOnly: true,
+        secure: this.configService.get<string>('NODE_ENV') === 'production',
+        sameSite: this.configService.get<string>('NODE_ENV') === 'production' ? 'strict' : 'lax',
+        path: '/',
+      });
+
       this.logger.log(`✅ Đăng xuất thành công cho ID: ${userId}`);
       return result;
     } catch (error) {
@@ -266,23 +294,26 @@ export class AuthController {
       }
 
       // ✅ Xử lý đăng nhập hoặc tạo user mới
-      const { user, token } = await this.authService.validateGoogleUser(req.user);
+      const { user } = await this.authService.validateGoogleUser(req.user);
 
       if (!user) {
         throw new BadRequestException('Xác thực Google thất bại');
       }
 
-      // ✅ Chuyển hướng đến client với token
+      // ✅ Tạo JWT token cho Google auth (HttpOnly Cookie - không còn one-time-code)
+      const token = await this.authService.createGoogleAuthToken(user);
+      
+      // ✅ Set JWT vào HttpOnly Cookie
+      const cookieOptions = getCookieOptions(this.configService);
+      res.cookie(JWT_COOKIE_NAME, token, cookieOptions);
+
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || '';
       const redirectUrl = user.role === 'admin'
         ? `${frontendUrl}/admin`
         : `${frontendUrl}/`;
 
-      // Add token as a query parameter
-      const redirectUrlWithToken = `${redirectUrl}?token=${token}`;
-
       this.logger.log(`✅ Google auth successful for user: ${user.email}`);
-      return res.redirect(redirectUrlWithToken);
+      return res.redirect(redirectUrl);
     } catch (error) {
       this.logger.error('❌ Lỗi xác thực Google:', error);
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || '';

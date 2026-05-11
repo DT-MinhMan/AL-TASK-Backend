@@ -105,7 +105,7 @@ export class AuthService {
   }
 
   /**
-   * 🔐 Đăng nhập người dùng
+   * 🔐 Đăng nhập người dùng (HttpOnly Cookie Auth)
    */
   async login(loginDto: LoginDto) {
     try {
@@ -114,13 +114,6 @@ export class AuthService {
       if (!user) {
         throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
       }
-
-      // // Kiểm tra trạng thái tài khoản
-      // if (user.status === 'pending') {
-      //   throw new UnauthorizedException(
-      //     'Tài khoản chưa được xác thực. Vui lòng kiểm tra email để xác thực tài khoản.',
-      //   );
-      // }
 
       // Kiểm tra xem user có password không
       if (!user.password) {
@@ -145,11 +138,13 @@ export class AuthService {
         user.avatar
       );
 
+      // ✅ Return token + user info (controller sẽ set token vào HttpOnly cookie)
       return {
         success: true,
         message: 'Đăng nhập thành công',
         token,
         user: {
+          userId: user._id.toString(),
           email: user.email,
           role: user.role,
           fullName: user.fullName,
@@ -231,7 +226,7 @@ export class AuthService {
     id?: string;
     fullName?: string;
     photos?: { value: string }[];
-  }): Promise<{ user: User; token: string }> {
+  }): Promise<{ user: User }> {
     if (!profile || typeof profile !== 'object') {
       throw new BadRequestException(
         'Lỗi xác thực Google: Dữ liệu không hợp lệ',
@@ -302,15 +297,7 @@ export class AuthService {
       }
 
       // 🛠 Tạo và lưu token sử dụng MongoDB _id
-      const token = await this.createAndSaveToken(
-        currentUser._id.toString(),
-        currentUser.email,
-        currentUser.role,
-        currentUser.fullName,
-        currentUser.avatar
-      );
-
-      return { user: currentUser, token };
+      return { user: currentUser };
     } catch (error) {
       this.logger.error('❌ Lỗi trong quá trình xác thực Google:', error);
       if (error instanceof BadRequestException) {
@@ -321,8 +308,18 @@ export class AuthService {
   }
 
   /**
-   * 🔄 Yêu cầu đặt lại mật khẩu
+   * � Tạo token sau khi Google auth thành công (HttpOnly Cookie)
    */
+  async createGoogleAuthToken(user: User): Promise<string> {
+    return this.createAndSaveToken(
+      user._id.toString(),
+      user.email,
+      user.role,
+      user.fullName,
+      user.avatar,
+    );
+  }
+
   async requestPasswordReset(dto: RequestPasswordResetDto) {
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {

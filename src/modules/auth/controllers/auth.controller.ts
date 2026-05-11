@@ -21,6 +21,7 @@ import {
 import { AuthService } from '../services/auth.service';
 import { UsersService } from '../../users/services/users.service';
 import { RegisterDto, LoginDto, UpdateProfileDto } from '../dtos/auth.dto';
+import { RefreshTokenDto } from '../dtos/refresh-token.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { GoogleAuthGuard } from '../guards/google-auth.guard';
 import { Response } from 'express';
@@ -28,7 +29,7 @@ import { ConfigService } from '@nestjs/config';
 import { RequestPasswordResetDto, ResetPasswordWithTokenDto, ResetPasswordWithOtpDto, VerifyOtpDto } from '../dtos/password-reset.dto';
 import { PermissionsService } from '../../permissions/services/permissions.service';
 import { Document } from 'mongoose';
-import { getCookieOptions, JWT_COOKIE_NAME } from '../../../config/cookie.config';
+import { getAccessCookieOptions, getRefreshCookieOptions, getCookieOptions, JWT_COOKIE_NAME, REFRESH_COOKIE_NAME } from '../../../config/cookie.config';
 
 // Interface để định nghĩa kiểu dữ liệu của req.user
 interface RequestWithUser extends Request {
@@ -37,7 +38,6 @@ interface RequestWithUser extends Request {
     email?: string;
     role?: string;
   };
-  cookies?: Record<string, string>;
 }
 
 interface AuthError extends Error {
@@ -90,30 +90,26 @@ export class AuthController {
     }
   }
 
-  // 🔐 Đăng nhập người dùng (HttpOnly Cookie)
+  // 🔐 Đăng nhập người dùng (HttpOnly Cookie - Access + Refresh Token)
   @HttpCode(HttpStatus.OK)
   @Post('login')
-  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
+  async login(@Body() loginDto: LoginDto) {
     this.logger.log('🔐 Đang xử lý đăng nhập...');
     this.logger.debug(`Thông tin đăng nhập: ${loginDto.email}`);
 
     try {
       const result = await this.authService.login(loginDto);
       
-      // ✅ Set JWT vào HttpOnly Cookie
-      const cookieOptions = getCookieOptions(this.configService);
-      res.cookie(JWT_COOKIE_NAME, result.token, cookieOptions);
+      // ✅ Set Access Token vào HttpOnly Cookie (15m)
+      res.cookie(JWT_COOKIE_NAME, result.accessToken, getAccessCookieOptions(this.configService));
+
+      // ✅ Set Refresh Token vào HttpOnly Cookie (7 days)
+      res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, getRefreshCookieOptions(this.configService));
 
       this.logger.log(
         `✅ Đăng nhập thành công cho email: ${loginDto.email} với vai trò ${result.user.role}`,
       );
-
-      // ❌ Không return token trong response (nó đã được set trong cookie)
-      return {
-        success: result.success,
-        message: result.message,
-        user: result.user,
-      };
+      return result;
     } catch (error) {
       const err = error as AuthError;
       this.logger.error(`❌ Lỗi khi đăng nhập: ${err.message}`, err.stack);
@@ -121,40 +117,80 @@ export class AuthController {
     }
   }
 
-  // 🚪 Đăng xuất người dùng (Clear HttpOnly Cookie)
+  // 🚪 Đăng xuất người dùng (Clear cả 2 HttpOnly Cookies)
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   async logout(
     @Request() req: RequestWithUser,
-    @Res({ passthrough: true }) res: Response,
+    @Headers('authorization') authorization?: string,
   ) {
     const userId = req.user?.userId;
-    
-    // ✅ Lấy token từ cookie (hoặc fallback từ header)
-    const tokenFromCookie = req.cookies?.[JWT_COOKIE_NAME];
-    const authHeader = req.headers.get?.('authorization') || (req.headers as any)['authorization'];
-    const tokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
-    const token = tokenFromCookie || tokenFromHeader;
+
+    // ✅ Lấy access token từ cookie hoặc fallback header
+    const accessTokenFromCookie = req.cookies?.[JWT_COOKIE_NAME];
+    const authHeader = (req.headers as any)['authorization'] as string | undefined;
+    const accessTokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
+    const accessToken = accessTokenFromCookie || accessTokenFromHeader;
+
+    // ✅ Lấy refresh token từ cookie
+    const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
 
     this.logger.log(`🚪 Đang đăng xuất người dùng với ID: ${userId}`);
 
     try {
-      const result = await this.authService.logout(token);
-      
-      // ✅ Xóa cookie (set maxAge = 0)
-      res.clearCookie(JWT_COOKIE_NAME, {
+      const result = await this.authService.logout(accessToken, refreshToken);
+
+      // ✅ Xóa cả 2 cookies
+      const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+      const clearOptions = {
         httpOnly: true,
-        secure: this.configService.get<string>('NODE_ENV') === 'production',
-        sameSite: this.configService.get<string>('NODE_ENV') === 'production' ? 'strict' : 'lax',
+        secure: isProduction,
+        sameSite: (isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
         path: '/',
-      });
+      };
+      res.clearCookie(JWT_COOKIE_NAME, clearOptions);
+      res.clearCookie(REFRESH_COOKIE_NAME, clearOptions);
 
       this.logger.log(`✅ Đăng xuất thành công cho ID: ${userId}`);
       return result;
     } catch (error) {
       const err = error as AuthError;
       this.logger.error(`❌ Lỗi khi đăng xuất: ${err.message}`, err.stack);
+      throw error;
+    }
+  }
+
+  // 🔄 Refresh Access Token từ Refresh Token (cookie hoặc body)
+  @HttpCode(HttpStatus.OK)
+  @Post('refresh')
+  async refreshToken(
+    @Req() req: RequestWithUser,
+    @Body() body: RefreshTokenDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // ✅ Ưu tiên lấy refresh token từ HttpOnly Cookie, fallback về body
+    const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME] ?? body?.refreshToken;
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token không tồn tại');
+    }
+
+    this.logger.log('🔄 Đang refresh access token...');
+
+    try {
+      const result = await this.authService.refreshAccessToken(refreshToken);
+
+      // ✅ Set access token mới vào cookie
+      res.cookie(JWT_COOKIE_NAME, result.accessToken, getAccessCookieOptions(this.configService));
+      // ✅ Set refresh token mới (rotation) vào cookie
+      res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, getRefreshCookieOptions(this.configService));
+
+      this.logger.log('✅ Refresh token thành công');
+      return { success: true, message: 'Làm mới token thành công' };
+    } catch (error) {
+      const err = error as AuthError;
+      this.logger.error(`❌ Lỗi khi refresh token: ${err.message}`, err.stack);
       throw error;
     }
   }
@@ -294,29 +330,28 @@ export class AuthController {
       }
 
       // ✅ Xử lý đăng nhập hoặc tạo user mới
-      const { user } = await this.authService.validateGoogleUser(req.user);
+      const { user, token } = await this.authService.validateGoogleUser(req.user);
 
       if (!user) {
         throw new BadRequestException('Xác thực Google thất bại');
       }
 
-      // ✅ Tạo JWT token cho Google auth (HttpOnly Cookie - không còn one-time-code)
-      const token = await this.authService.createGoogleAuthToken(user);
+      // ✅ Chuyển hướng đến client với token
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+      const dashboardUrl = this.configService.get<string>('FRONTEND_DASHBOARD_URL') || `${frontendUrl}/dashboard`;
       
-      // ✅ Set JWT vào HttpOnly Cookie
-      const cookieOptions = getCookieOptions(this.configService);
-      res.cookie(JWT_COOKIE_NAME, token, cookieOptions);
-
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || '';
       const redirectUrl = user.role === 'admin'
-        ? `${frontendUrl}/admin`
+        ? dashboardUrl
         : `${frontendUrl}/`;
 
+      // Add token as a query parameter
+      const redirectUrlWithToken = `${redirectUrl}${redirectUrl.includes('?') ? '&' : '?'}token=${token}`;
+
       this.logger.log(`✅ Google auth successful for user: ${user.email}`);
-      return res.redirect(redirectUrl);
+      return res.redirect(redirectUrlWithToken);
     } catch (error) {
       this.logger.error('❌ Lỗi xác thực Google:', error);
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || '';
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
       return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
     }
   }

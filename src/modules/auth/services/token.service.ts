@@ -7,7 +7,8 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Token, TokenDocument } from '../schemas/token.schema';
-import { v4 as uuidv4 } from 'uuid';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class TokenService {
@@ -15,28 +16,48 @@ export class TokenService {
 
   constructor(
     @InjectModel(Token.name) private readonly tokenModel: Model<TokenDocument>,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   // ✅ Tạo và lưu token vào cơ sở dữ liệu
   async createAndSaveToken(
     userId: string,
     email: string,
-    deviceInfo: string = 'Unknown',
+    role: string,
+    fullName?: string,
+    avatar?: string,
+    deviceInfo: string = 'Web',
   ): Promise<string> {
     this.logger.log(`🔑 Tạo token mới cho userId: ${userId}, email: ${email}`);
 
     try {
-      const token = uuidv4();
+      const payload = {
+        userId,
+        email,
+        role,
+        fullName,
+        avatar,
+      };
+
+      const token = this.jwtService.sign(payload);
+
+      // Tính toán thời gian hết hạn (ví dụ: 7 ngày)
+      const expiresInDays = parseInt(this.configService.get<string>('JWT_EXPIRES_IN_DAYS') || '7');
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+
       const newToken = new this.tokenModel({
         userId,
         email,
         token,
         deviceInfo,
         status: true,
+        expiresAt,
       });
 
       await newToken.save();
-      this.logger.log(`✅ Token được lưu thành công vào database: ${token}`);
+      this.logger.log(`✅ Token được lưu thành công vào database cho user: ${email}`);
       return token;
     } catch (error) {
       const err = error as Error;
@@ -62,7 +83,13 @@ export class TokenService {
   async findToken(token: string): Promise<TokenDocument | null> {
     this.logger.log(`🔍 Tìm token trong database: ${token}`);
     try {
-      return await this.tokenModel.findOne({ token, status: true }).exec();
+      return await this.tokenModel
+        .findOne({
+          token,
+          status: true,
+          expiresAt: { $gt: new Date() }, // ✅ Chỉ lấy token chưa hết hạn
+        })
+        .exec();
     } catch (error) {
       const err = error as Error;
       this.logger.error(`❌ Lỗi khi tìm token: ${err.message}`, err.stack);

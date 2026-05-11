@@ -28,8 +28,7 @@ export class Token {
   @Prop({ type: String, enum: ['access', 'refresh', 'password-reset'], default: 'access' })
   type!: TokenType;
 
-  @Prop({ type: String, enum: ['access', 'refresh', 'password-reset'], default: 'access' })
-  type!: TokenType;
+
 
   @Prop({ type: Date, expires: 0 })
   expiresAt?: Date;

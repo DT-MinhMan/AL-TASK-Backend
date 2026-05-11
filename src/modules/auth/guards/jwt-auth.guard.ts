@@ -8,6 +8,8 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 import { TokenService } from '../services/token.service';
+import { JWT_COOKIE_NAME } from '../../../config/cookie.config';
+
 
 // Định nghĩa kiểu payload của JWT
 interface JwtPayload {
@@ -34,24 +36,16 @@ export class JwtAuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<RequestWithUser>();
+    const request = context.switchToHttp().getRequest<RequestWithUser>(); 
 
     // ✅ Lấy token từ cookie (ưu tiên) hoặc Bearer header
     let token = request.cookies?.[JWT_COOKIE_NAME];
-
-    if (!token) {
-      const authHeader = request.headers.authorization;
-      if (authHeader?.startsWith('Bearer ')) {
-        token = authHeader.split(' ')[1];
-      }
-    }
-
+      
+    const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       this.logger.warn('⚠️ Không tìm thấy token hoặc sai định dạng.');
       throw new UnauthorizedException('Token không hợp lệ hoặc thiếu');
     }
-
-    const token = authHeader.split(' ')[1];
 
     let decoded: JwtPayload;
     try {

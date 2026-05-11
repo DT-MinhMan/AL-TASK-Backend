@@ -24,7 +24,7 @@ import { RegisterDto, LoginDto, UpdateProfileDto } from '../dtos/auth.dto';
 import { RefreshTokenDto } from '../dtos/refresh-token.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { GoogleAuthGuard } from '../guards/google-auth.guard';
-import { Response } from 'express';
+import { Response, Request as ExpressRequest } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { RequestPasswordResetDto, ResetPasswordWithTokenDto, ResetPasswordWithOtpDto, VerifyOtpDto } from '../dtos/password-reset.dto';
 import { PermissionsService } from '../../permissions/services/permissions.service';
@@ -32,7 +32,7 @@ import { Document } from 'mongoose';
 import { getAccessCookieOptions, getRefreshCookieOptions, getCookieOptions, JWT_COOKIE_NAME, REFRESH_COOKIE_NAME } from '../../../config/cookie.config';
 
 // Interface để định nghĩa kiểu dữ liệu của req.user
-interface RequestWithUser extends Request {
+interface RequestWithUser extends ExpressRequest {
   user: {
     userId: string; // Thay vì `id`
     email?: string;
@@ -93,7 +93,7 @@ export class AuthController {
   // 🔐 Đăng nhập người dùng (HttpOnly Cookie - Access + Refresh Token)
   @HttpCode(HttpStatus.OK)
   @Post('login')
-  async login(@Body() loginDto: LoginDto) {
+  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     this.logger.log('🔐 Đang xử lý đăng nhập...');
     this.logger.debug(`Thông tin đăng nhập: ${loginDto.email}`);
 
@@ -123,6 +123,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async logout(
     @Request() req: RequestWithUser,
+    @Res({ passthrough: true }) res: Response,
     @Headers('authorization') authorization?: string,
   ) {
     const userId = req.user?.userId;

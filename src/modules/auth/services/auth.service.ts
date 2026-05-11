@@ -9,6 +9,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../users/services/users.service';
 import { RegisterDto, LoginDto } from '../dtos/auth.dto';
 import * as bcrypt from 'bcrypt';
@@ -42,6 +43,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly tokenService: TokenService,
+    private readonly configService: ConfigService,
     @InjectModel(Token.name) private readonly tokenModel: Model<TokenDocument>,
     @InjectModel(Otp.name) private readonly otpModel: Model<OtpDocument>,
     @InjectModel(Auth.name) private readonly authModel: Model<Auth>,
@@ -105,7 +107,7 @@ export class AuthService {
   }
 
   /**
-   * 🔐 Đăng nhập người dùng
+   * 🔐 Đăng nhập người dùng (HttpOnly Cookie Auth + Access + Refresh Token)
    */
   async login(loginDto: LoginDto) {
     try {
@@ -136,8 +138,8 @@ export class AuthService {
         throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
       }
 
-      // Tạo token và lưu vào database
-      const token = await this.tokenService.createAndSaveToken(
+      // ✅ Tạo cả access + refresh token
+      const { accessToken, refreshToken } = await this.createAndSaveTokens(
         user._id.toString(),
         user.email,
         user.role,
@@ -145,10 +147,12 @@ export class AuthService {
         user.avatar,
       );
 
+      // ✅ Return cả 2 tokens (controller sẽ set vào cookies)
       return {
         success: true,
         message: 'Đăng nhập thành công',
-        token,
+        accessToken,
+        refreshToken,
         user: {
           email: user.email,
           role: user.role,
@@ -164,22 +168,249 @@ export class AuthService {
   }
 
   /**
-   * 🚪 Đăng xuất người dùng
+   * 🚪 Đăng xuất người dùng - revoke cả access token và refresh token
    */
-  async logout(token?: string): Promise<{ message: string }> {
+  async logout(accessToken?: string, refreshToken?: string): Promise<{ message: string }> {
     this.logger.log('Đang đăng xuất phiên hiện tại');
-    if (!token) {
+    if (!accessToken && !refreshToken) {
       throw new UnauthorizedException('Token không hợp lệ hoặc thiếu');
     }
 
     try {
-      await this.tokenService.invalidateToken(token);
+      const tokensToRevoke = [accessToken, refreshToken].filter(Boolean) as string[];
+      await this.tokenModel.updateMany(
+        { token: { $in: tokensToRevoke } },
+        { status: false }
+      );
       this.logger.log('Đăng xuất phiên hiện tại thành công');
       return { message: 'Đăng xuất thành công' };
     } catch (error: unknown) {
       const err = error as Error;
       this.logger.error(`❌ Lỗi khi đăng xuất: ${err.message}`, err.stack);
       throw new InternalServerErrorException('Lỗi khi đăng xuất người dùng.');
+    }
+  }
+
+  /**
+   * 🔄 Refresh Access Token
+   */
+  async refreshAccessToken(refreshToken: string): Promise<{
+    success: boolean;
+    accessToken: string;
+    refreshToken: string;
+  }> {
+    try {
+      // ✅ Verify refresh token
+      const decoded = this.jwtService.verify(refreshToken, {
+        secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
+      }) as any;
+
+      if (decoded.type !== 'refresh') {
+        throw new UnauthorizedException('Token không phải là refresh token');
+      }
+
+      // ✅ Check if refresh token still valid in DB
+      const refreshTokenRecord = await this.tokenModel.findOne({
+        token: refreshToken,
+        status: true,
+        type: 'refresh',
+      });
+
+      if (!refreshTokenRecord) {
+        throw new UnauthorizedException('Refresh token không hợp lệ hoặc đã hết hạn');
+      }
+
+      // ✅ Get user info
+      const user = await this.usersService.getUserById(decoded.userId);
+      if (!user) {
+        throw new UnauthorizedException('User không tồn tại');
+      }
+
+      // ✅ Revoke old access token
+      await this.tokenModel.updateMany(
+        { userId: decoded.userId, type: 'access', status: true },
+        { status: false }
+      );
+
+      // ✅ Create new access token
+      const newAccessToken = this.createAccessToken(
+        user._id.toString(),
+        user.email,
+        user.role,
+        user.fullName,
+        user.avatar
+      );
+
+      // ✅ Create new refresh token (rotate refresh token for security)
+      const newRefreshToken = this.createRefreshToken(user._id.toString());
+
+      // ✅ Save new access token to DB
+      await this.tokenModel.create({
+        userId: user._id.toString(),
+        email: user.email,
+        role: user.role,
+        token: newAccessToken,
+        deviceInfo: 'Web',
+        status: true,
+        type: 'access',
+      });
+
+      // ✅ Save new refresh token to DB
+      await this.tokenModel.create({
+        userId: user._id.toString(),
+        email: user.email,
+        token: newRefreshToken,
+        deviceInfo: 'Web',
+        status: true,
+        type: 'refresh',
+      });
+
+      // ✅ Revoke old refresh token
+      await this.tokenModel.updateOne(
+        { token: refreshToken },
+        { status: false }
+      );
+
+      this.logger.debug(`🔄 Token refreshed for userId: ${decoded.userId}`);
+
+      return {
+        success: true,
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+      };
+    } catch (error: unknown) {
+      const err = error as Error;
+      if (err.name === 'JsonWebTokenError') {
+        throw new UnauthorizedException('Refresh token không hợp lệ');
+      }
+      if (err.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Refresh token đã hết hạn, vui lòng đăng nhập lại');
+      }
+      this.logger.error(`❌ Lỗi khi refresh token: ${err.message}`, err.stack);
+      throw error;
+    }
+  }
+
+  /**
+   * 🛠️ Tạo Access Token (15m)
+   */
+  private createAccessToken(
+    userId: string,
+    email: string,
+    role: string,
+    fullName?: string,
+    avatar?: string,
+  ): string {
+    const payload = {
+      userId,
+      email,
+      role,
+      fullName,
+      avatar,
+      type: 'access', // ✅ Mark as access token
+    };
+
+    return this.jwtService.sign(payload);
+  }
+
+  /**
+   * 🔄 Tạo Refresh Token (7 days)
+   */
+  private createRefreshToken(userId: string): string {
+    const payload = {
+      userId,
+      type: 'refresh', // ✅ Mark as refresh token
+    };
+
+    return this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
+      expiresIn: this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN') || '7d',
+    });
+  }
+
+  /**
+   * 🛠️ Tạo và lưu cả Access + Refresh Token
+   */
+  private async createAndSaveTokens(
+    userId: string,
+    email: string,
+    role: string,
+    fullName?: string,
+    avatar?: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    try {
+      // ✅ Tạo access token (15m)
+      const accessToken = this.createAccessToken(userId, email, role, fullName, avatar);
+
+      // ✅ Tạo refresh token (7d)
+      const refreshToken = this.createRefreshToken(userId);
+
+      // ✅ Lưu access token vào database
+      await this.tokenModel.create({
+        userId,
+        email,
+        role,
+        token: accessToken,
+        deviceInfo: 'Web',
+        status: true,
+        type: 'access',
+      });
+
+      // ✅ Lưu refresh token vào database
+      await this.tokenModel.create({
+        userId,
+        email,
+        token: refreshToken,
+        deviceInfo: 'Web',
+        status: true,
+        type: 'refresh',
+      });
+
+      this.logger.debug(`🔑 Tokens đã được tạo và lưu cho userId: ${userId}`);
+      return { accessToken, refreshToken };
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(`❌ Error creating tokens: ${err.message}`, err.stack);
+      throw new InternalServerErrorException('Cannot create authentication tokens');
+    }
+  }
+
+  /**
+   * 🛠️ Cách cũ - giữ lại để backward compatible
+   */
+  private async createAndSaveToken(
+    userId: string,
+    email: string,
+    role: string,
+    fullName?: string,
+    avatar?: string,
+  ): Promise<string> {
+    try {
+      const payload = {
+        userId,
+        email,
+        role,
+        fullName,
+        avatar
+      };
+
+      const token = this.jwtService.sign(payload);
+
+      await this.tokenModel.create({
+        userId,
+        email,
+        role,
+        token,
+        deviceInfo: 'Web',
+        status: true,
+      });
+
+      this.logger.debug(`🔑 Token đã được tạo và lưu cho userId: ${userId}`);
+      return token;
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(`❌ Error creating token: ${err.message}`, err.stack);
+      throw new InternalServerErrorException('Cannot create authentication token');
     }
   }
 

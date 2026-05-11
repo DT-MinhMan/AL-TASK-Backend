@@ -3,6 +3,8 @@ import { Document, Types } from 'mongoose';
 
 export type TokenDocument = Token & Document;
 
+export type TokenType = 'access' | 'refresh' | 'password-reset';
+
 @Schema({ timestamps: true })
 export class Token {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
@@ -10,6 +12,9 @@ export class Token {
 
   @Prop({ required: true })
   email!: string;
+
+  @Prop({ default: 'user' })
+  role!: string;
 
   @Prop({ required: true, unique: true })
   token!: string;
@@ -19,6 +24,12 @@ export class Token {
 
   @Prop({ default: true })
   status!: boolean;
+
+  @Prop({ type: String, enum: ['access', 'refresh', 'password-reset'], default: 'access' })
+  type!: TokenType;
+
+  @Prop({ type: String, enum: ['access', 'refresh', 'password-reset'], default: 'access' })
+  type!: TokenType;
 
   @Prop({ type: Date, expires: 0 })
   expiresAt?: Date;

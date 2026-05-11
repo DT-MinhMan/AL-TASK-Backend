@@ -21,6 +21,7 @@ import {
 import { AuthService } from '../services/auth.service';
 import { UsersService } from '../../users/services/users.service';
 import { RegisterDto, LoginDto, UpdateProfileDto } from '../dtos/auth.dto';
+import { RefreshTokenDto } from '../dtos/refresh-token.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { GoogleAuthGuard } from '../guards/google-auth.guard';
 import { Response } from 'express';
@@ -28,6 +29,7 @@ import { ConfigService } from '@nestjs/config';
 import { RequestPasswordResetDto, ResetPasswordWithTokenDto, ResetPasswordWithOtpDto, VerifyOtpDto } from '../dtos/password-reset.dto';
 import { PermissionsService } from '../../permissions/services/permissions.service';
 import { Document } from 'mongoose';
+import { getAccessCookieOptions, getRefreshCookieOptions, getCookieOptions, JWT_COOKIE_NAME, REFRESH_COOKIE_NAME } from '../../../config/cookie.config';
 
 // Interface để định nghĩa kiểu dữ liệu của req.user
 interface RequestWithUser extends Request {
@@ -88,7 +90,7 @@ export class AuthController {
     }
   }
 
-  // 🔐 Đăng nhập người dùng
+  // 🔐 Đăng nhập người dùng (HttpOnly Cookie - Access + Refresh Token)
   @HttpCode(HttpStatus.OK)
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
@@ -97,6 +99,13 @@ export class AuthController {
 
     try {
       const result = await this.authService.login(loginDto);
+      
+      // ✅ Set Access Token vào HttpOnly Cookie (15m)
+      res.cookie(JWT_COOKIE_NAME, result.accessToken, getAccessCookieOptions(this.configService));
+
+      // ✅ Set Refresh Token vào HttpOnly Cookie (7 days)
+      res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, getRefreshCookieOptions(this.configService));
+
       this.logger.log(
         `✅ Đăng nhập thành công cho email: ${loginDto.email} với vai trò ${result.user.role}`,
       );
@@ -108,7 +117,7 @@ export class AuthController {
     }
   }
 
-  // 🚪 Đăng xuất người dùng
+  // 🚪 Đăng xuất người dùng (Clear cả 2 HttpOnly Cookies)
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   @UseGuards(JwtAuthGuard)
@@ -117,16 +126,71 @@ export class AuthController {
     @Headers('authorization') authorization?: string,
   ) {
     const userId = req.user?.userId;
-    const token = authorization?.split(' ')[1];
+
+    // ✅ Lấy access token từ cookie hoặc fallback header
+    const accessTokenFromCookie = req.cookies?.[JWT_COOKIE_NAME];
+    const authHeader = (req.headers as any)['authorization'] as string | undefined;
+    const accessTokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
+    const accessToken = accessTokenFromCookie || accessTokenFromHeader;
+
+    // ✅ Lấy refresh token từ cookie
+    const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
+
     this.logger.log(`🚪 Đang đăng xuất người dùng với ID: ${userId}`);
 
     try {
-      const result = await this.authService.logout(token);
+      const result = await this.authService.logout(accessToken, refreshToken);
+
+      // ✅ Xóa cả 2 cookies
+      const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+      const clearOptions = {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: (isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
+        path: '/',
+      };
+      res.clearCookie(JWT_COOKIE_NAME, clearOptions);
+      res.clearCookie(REFRESH_COOKIE_NAME, clearOptions);
+
       this.logger.log(`✅ Đăng xuất thành công cho ID: ${userId}`);
       return result;
     } catch (error) {
       const err = error as AuthError;
       this.logger.error(`❌ Lỗi khi đăng xuất: ${err.message}`, err.stack);
+      throw error;
+    }
+  }
+
+  // 🔄 Refresh Access Token từ Refresh Token (cookie hoặc body)
+  @HttpCode(HttpStatus.OK)
+  @Post('refresh')
+  async refreshToken(
+    @Req() req: RequestWithUser,
+    @Body() body: RefreshTokenDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // ✅ Ưu tiên lấy refresh token từ HttpOnly Cookie, fallback về body
+    const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME] ?? body?.refreshToken;
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token không tồn tại');
+    }
+
+    this.logger.log('🔄 Đang refresh access token...');
+
+    try {
+      const result = await this.authService.refreshAccessToken(refreshToken);
+
+      // ✅ Set access token mới vào cookie
+      res.cookie(JWT_COOKIE_NAME, result.accessToken, getAccessCookieOptions(this.configService));
+      // ✅ Set refresh token mới (rotation) vào cookie
+      res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, getRefreshCookieOptions(this.configService));
+
+      this.logger.log('✅ Refresh token thành công');
+      return { success: true, message: 'Làm mới token thành công' };
+    } catch (error) {
+      const err = error as AuthError;
+      this.logger.error(`❌ Lỗi khi refresh token: ${err.message}`, err.stack);
       throw error;
     }
   }

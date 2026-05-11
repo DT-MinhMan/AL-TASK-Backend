@@ -137,12 +137,12 @@ export class AuthService {
       }
 
       // Tạo token và lưu vào database
-      const token = await this.createAndSaveToken(
+      const token = await this.tokenService.createAndSaveToken(
         user._id.toString(),
         user.email,
         user.role,
         user.fullName,
-        user.avatar
+        user.avatar,
       );
 
       return {
@@ -173,55 +173,13 @@ export class AuthService {
     }
 
     try {
-      await this.tokenModel.updateOne({ token }, { status: false });
+      await this.tokenService.invalidateToken(token);
       this.logger.log('Đăng xuất phiên hiện tại thành công');
       return { message: 'Đăng xuất thành công' };
     } catch (error: unknown) {
       const err = error as Error;
       this.logger.error(`❌ Lỗi khi đăng xuất: ${err.message}`, err.stack);
       throw new InternalServerErrorException('Lỗi khi đăng xuất người dùng.');
-    }
-  }
-
-  /**
-   * 🛠️ Hàm tạo và lưu token vào MongoDB
-   */
-  private async createAndSaveToken(
-    userId: string,
-    email: string,
-    role: string,
-    fullName?: string,
-    avatar?: string,
-  ): Promise<string> {
-    try {
-      // ✅ Tối ưu: Không lưu permissions vào JWT token
-      // Chỉ lưu thông tin cần thiết: userId, email, role, fullName, avatar
-      const payload = {
-        userId,
-        email,
-        role,
-        fullName,
-        avatar
-      };
-
-      // ✅ Sign JWT với payload tối giản
-      const token = this.jwtService.sign(payload);
-
-      await this.tokenModel.create({
-        userId,
-        email,
-        role,
-        token,
-        deviceInfo: 'Web',
-        status: true,
-      });
-
-      this.logger.debug(`🔑 Token đã được tạo và lưu cho userId: ${userId}`);
-      return token;
-    } catch (error) {
-      const err = error as Error;
-      this.logger.error(`❌ Error creating token: ${err.message}`, err.stack);
-      throw new InternalServerErrorException('Cannot create authentication token');
     }
   }
 
@@ -302,7 +260,7 @@ export class AuthService {
       }
 
       // 🛠 Tạo và lưu token sử dụng MongoDB _id
-      const token = await this.createAndSaveToken(
+      const token = await this.tokenService.createAndSaveToken(
         currentUser._id.toString(),
         currentUser.email,
         currentUser.role,

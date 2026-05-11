@@ -273,19 +273,21 @@ export class AuthController {
       }
 
       // ✅ Chuyển hướng đến client với token
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || '';
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+      const dashboardUrl = this.configService.get<string>('FRONTEND_DASHBOARD_URL') || `${frontendUrl}/dashboard`;
+      
       const redirectUrl = user.role === 'admin'
-        ? `${frontendUrl}/admin`
+        ? dashboardUrl
         : `${frontendUrl}/`;
 
       // Add token as a query parameter
-      const redirectUrlWithToken = `${redirectUrl}?token=${token}`;
+      const redirectUrlWithToken = `${redirectUrl}${redirectUrl.includes('?') ? '&' : '?'}token=${token}`;
 
       this.logger.log(`✅ Google auth successful for user: ${user.email}`);
       return res.redirect(redirectUrlWithToken);
     } catch (error) {
       this.logger.error('❌ Lỗi xác thực Google:', error);
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || '';
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
       return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
     }
   }

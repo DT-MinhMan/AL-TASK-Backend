@@ -20,11 +20,12 @@ export class Token {
   @Prop({ default: true })
   status!: boolean;
 
-  @Prop({ default: Date.now })
-  registerDate!: Date;
+  @Prop({ type: Date, expires: 0 })
+  expiresAt?: Date;
 
-  @Prop({ default: Date.now })
-  createdAt!: Date;
+  readonly _id!: Types.ObjectId;
+  readonly createdAt!: Date;
+  readonly updatedAt!: Date;
 }
 
 export const TokenSchema = SchemaFactory.createForClass(Token);

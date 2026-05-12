@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install @nestjs/throttler --save)",
+      "Bash(node -e \"require\\(''@nestjs/throttler''\\); console.log\\(''OK'', require\\(''@nestjs/throttler/package.json''\\).version\\)\")",
+      "Bash(npx tsc --noEmit)"
+    ]
+  }
+}

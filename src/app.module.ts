@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -42,6 +44,36 @@ import { VerifyModule } from './modules/verify/verify.module';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+    }),
+
+    // Rate limiting — multiple named throttlers for different endpoint classes
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (cfg: ConfigService) => ({
+        throttlers: [
+          {
+            name: 'login',    // POST /auth/login — brute-force protection
+            ttl:   cfg.get<number>('THROTTLE_LOGIN_TTL_MS')   ?? 60_000,
+            limit: cfg.get<number>('THROTTLE_LOGIN_LIMIT')    ?? 5,
+          },
+          {
+            name: 'refresh',  // POST /auth/refresh — mobile-friendly, lenient
+            ttl:   cfg.get<number>('THROTTLE_REFRESH_TTL_MS') ?? 60_000,
+            limit: cfg.get<number>('THROTTLE_REFRESH_LIMIT')  ?? 30,
+          },
+          {
+            name: 'otp',      // POST /auth/verify-otp — prevent OTP brute-force
+            ttl:   cfg.get<number>('THROTTLE_OTP_TTL_MS')    ?? 60_000,
+            limit: cfg.get<number>('THROTTLE_OTP_LIMIT')      ?? 5,
+          },
+          {
+            name: 'reset',    // POST /auth/request-password-reset — anti-spam
+            ttl:   cfg.get<number>('THROTTLE_RESET_TTL_MS')  ?? 900_000,
+            limit: cfg.get<number>('THROTTLE_RESET_LIMIT')    ?? 3,
+          },
+        ],
+      }),
     }),
 
     MulterModule.register({
@@ -116,6 +148,10 @@ import { VerifyModule } from './modules/verify/verify.module';
     }),
 
     VerifyModule,
+  ],
+  providers: [
+    // Throttler guard applied globally — individual routes override via @Throttle/@SkipThrottle
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}

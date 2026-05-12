@@ -28,7 +28,10 @@ export class Token {
   @Prop({ type: String, enum: ['access', 'refresh', 'password-reset'], default: 'access' })
   type!: TokenType;
 
-
+  // SEC-8: Token family — tất cả refresh token cùng session chia sẻ familyId
+  // Dùng để detect reuse attack (token theft detection)
+  @Prop({ type: String })
+  familyId?: string;
 
   @Prop({ type: Date, expires: 0 })
   expiresAt?: Date;
@@ -48,3 +51,7 @@ TokenSchema.index({ userId: 1, type: 1, status: 1 });
 // Dùng cho: findOne({ token: hash, status: true, type: 'refresh' })
 // Lưu ý: token đã có unique index riêng, compound này hỗ trợ covered query
 TokenSchema.index({ token: 1, status: 1, type: 1 });
+
+// SEC-8: Index cho family-wide revoke khi detect theft
+// Dùng cho: updateMany({ familyId, status: true }, { status: false })
+TokenSchema.index({ familyId: 1, status: 1 });

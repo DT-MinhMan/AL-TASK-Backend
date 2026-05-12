@@ -18,6 +18,7 @@ import {
   Res,
   Headers,
 } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { AuthService } from '../services/auth.service';
 import { UsersService } from '../../users/services/users.service';
 import { RegisterDto, LoginDto, UpdateProfileDto } from '../dtos/auth.dto';
@@ -30,11 +31,12 @@ import { RequestPasswordResetDto, ResetPasswordWithTokenDto, ResetPasswordWithOt
 import { PermissionsService } from '../../permissions/services/permissions.service';
 import { Document } from 'mongoose';
 import { getAccessCookieOptions, getRefreshCookieOptions, getCookieOptions, JWT_COOKIE_NAME, REFRESH_COOKIE_NAME } from '../../../config/cookie.config';
+import { AuditLogService } from '../services/audit-log.service';
 
 // Interface để định nghĩa kiểu dữ liệu của req.user
 interface RequestWithUser extends ExpressRequest {
   user: {
-    userId: string; // Thay vì `id`
+    userId: string;
     email?: string;
     role?: string;
   };
@@ -45,6 +47,8 @@ interface AuthError extends Error {
   message: string;
 }
 
+// SkipThrottle tại class level — chỉ áp throttle trên endpoint cụ thể
+@SkipThrottle()
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
@@ -54,6 +58,7 @@ export class AuthController {
     private readonly userService: UsersService,
     private readonly configService: ConfigService,
     private readonly permissionsService: PermissionsService,
+    private readonly auditLogService: AuditLogService,
   ) { }
 
   // Kiểm tra email trước khi submit
@@ -66,83 +71,97 @@ export class AuthController {
     return { isValid };
   }
 
-  // 📥 Đăng ký người dùng
+  // 📥 Đăng ký người dùng — throttle: 10/min để chống spam account
+  @Throttle({ login: { limit: 10, ttl: 60_000 } })
   @Post('register')
-  async register(@Body() registerDto: RegisterDto) {
+  async register(@Body() registerDto: RegisterDto, @Req() req: ExpressRequest) {
     this.logger.log('📥 Bắt đầu đăng ký người dùng...');
-    this.logger.debug(
-      `Dữ liệu đăng ký: ${JSON.stringify({
-        email: registerDto.email,
-      })}`,
-    );
 
     try {
       const result = await this.authService.register(registerDto);
-      this.logger.log(`✅ Đăng ký thành công cho email: ${registerDto.email}`);
+      this.auditLogService.log({
+        type: 'REGISTER_SUCCESS',
+        severity: 'INFO',
+        email: registerDto.email,
+        ip: AuditLogService.extractIp(req),
+        userAgent: AuditLogService.extractUserAgent(req),
+      });
       return result;
     } catch (error) {
       const err = error as Error;
-      this.logger.error(
-        `❌ Lỗi khi đăng ký người dùng: ${err.message}`,
-        err.stack,
-      );
+      this.auditLogService.log({
+        type: 'REGISTER_FAILED',
+        severity: 'WARN',
+        email: registerDto.email,
+        ip: AuditLogService.extractIp(req),
+        userAgent: AuditLogService.extractUserAgent(req),
+        metadata: { reason: err.message },
+      });
       throw error;
     }
   }
 
-  // 🔐 Đăng nhập người dùng (HttpOnly Cookie - Access + Refresh Token)
+  // 🔐 Đăng nhập — throttle: 5/min per IP (brute-force protection)
+  @Throttle({ login: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('login')
-  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+    @Req() req: ExpressRequest,
+  ) {
     this.logger.log('🔐 Đang xử lý đăng nhập...');
-    this.logger.debug(`Thông tin đăng nhập: ${loginDto.email}`);
 
     try {
       const result = await this.authService.login(loginDto);
-      
-      // ✅ Set Access Token vào HttpOnly Cookie (15m)
-      res.cookie(JWT_COOKIE_NAME, result.accessToken, getAccessCookieOptions(this.configService));
 
-      // ✅ Set Refresh Token vào HttpOnly Cookie (7 days)
+      // ✅ Set cả 2 tokens vào HttpOnly Cookie
+      res.cookie(JWT_COOKIE_NAME, result.accessToken, getAccessCookieOptions(this.configService));
       res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, getRefreshCookieOptions(this.configService));
 
-      this.logger.log(
-        `✅ Đăng nhập thành công cho email: ${loginDto.email} với vai trò ${result.user.role}`,
-      );
+      this.auditLogService.log({
+        type: 'LOGIN_SUCCESS',
+        severity: 'INFO',
+        email: loginDto.email,
+        ip: AuditLogService.extractIp(req),
+        userAgent: AuditLogService.extractUserAgent(req),
+        metadata: { role: result.user.role },
+      });
+
       return result;
     } catch (error) {
       const err = error as AuthError;
-      this.logger.error(`❌ Lỗi khi đăng nhập: ${err.message}`, err.stack);
+      this.auditLogService.log({
+        type: 'LOGIN_FAILED',
+        severity: 'WARN',
+        email: loginDto.email,
+        ip: AuditLogService.extractIp(req),
+        userAgent: AuditLogService.extractUserAgent(req),
+        metadata: { reason: err.message },
+      });
       throw error;
     }
   }
 
-  // 🚪 Đăng xuất người dùng (Clear cả 2 HttpOnly Cookies)
+  // 🚪 Đăng xuất — không cần throttle (guard đã bảo vệ)
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   async logout(
     @Request() req: RequestWithUser,
     @Res({ passthrough: true }) res: Response,
-    @Headers('authorization') authorization?: string,
   ) {
     const userId = req.user?.userId;
 
-    // ✅ Lấy access token từ cookie hoặc fallback header
     const accessTokenFromCookie = req.cookies?.[JWT_COOKIE_NAME];
     const authHeader = (req.headers as any)['authorization'] as string | undefined;
     const accessTokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
     const accessToken = accessTokenFromCookie || accessTokenFromHeader;
-
-    // ✅ Lấy refresh token từ cookie
     const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
-
-    this.logger.log(`🚪 Đang đăng xuất người dùng với ID: ${userId}`);
 
     try {
       const result = await this.authService.logout(accessToken, refreshToken);
 
-      // ✅ Xóa cả 2 cookies
       const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
       const clearOptions = {
         httpOnly: true,
@@ -153,7 +172,14 @@ export class AuthController {
       res.clearCookie(JWT_COOKIE_NAME, clearOptions);
       res.clearCookie(REFRESH_COOKIE_NAME, clearOptions);
 
-      this.logger.log(`✅ Đăng xuất thành công cho ID: ${userId}`);
+      this.auditLogService.log({
+        type: 'LOGOUT',
+        severity: 'INFO',
+        userId,
+        ip: AuditLogService.extractIp(req),
+        userAgent: AuditLogService.extractUserAgent(req),
+      });
+
       return result;
     } catch (error) {
       const err = error as AuthError;
@@ -162,7 +188,8 @@ export class AuthController {
     }
   }
 
-  // 🔄 Refresh Access Token từ Refresh Token (cookie hoặc body)
+  // 🔄 Refresh — throttle: 30/min (mobile-friendly, không block concurrent retry)
+  @Throttle({ refresh: { limit: 30, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
   async refreshToken(
@@ -170,24 +197,18 @@ export class AuthController {
     @Body() body: RefreshTokenDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    // ✅ Ưu tiên lấy refresh token từ HttpOnly Cookie, fallback về body
     const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME] ?? body?.refreshToken;
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token không tồn tại');
     }
 
-    this.logger.log('🔄 Đang refresh access token...');
-
     try {
       const result = await this.authService.refreshAccessToken(refreshToken);
 
-      // ✅ Set access token mới vào cookie
       res.cookie(JWT_COOKIE_NAME, result.accessToken, getAccessCookieOptions(this.configService));
-      // ✅ Set refresh token mới (rotation) vào cookie
       res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, getRefreshCookieOptions(this.configService));
 
-      this.logger.log('✅ Refresh token thành công');
       return { success: true, message: 'Làm mới token thành công' };
     } catch (error) {
       const err = error as AuthError;
@@ -200,22 +221,15 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async getProfile(@Request() req: RequestWithUser) {
-    const userId = req.user?.userId; // Đổi từ `req.user.id` sang `req.user.userId`
-    this.logger.log(`👤 Đang lấy thông tin người dùng với ID: ${userId}`);
-
+    const userId = req.user?.userId;
     if (!userId) {
       throw new UnauthorizedException('User ID không tồn tại trong request');
     }
-
     try {
-      const result = await this.userService.getUserById(userId);
-      this.logger.log(`✅ Lấy thông tin thành công cho ID: ${userId}`);
-      return result;
+      return await this.userService.getUserById(userId);
     } catch (error) {
       const err = error as Error;
-      this.logger.error(
-        `❌ Lỗi khi lấy thông tin người dùng: ${err.message}`,
-      );
+      this.logger.error(`❌ Lỗi khi lấy thông tin người dùng: ${err.message}`);
       throw error;
     }
   }
@@ -228,7 +242,6 @@ export class AuthController {
     const role = req.user?.role;
 
     try {
-      // Nếu người dùng là admin, trả về danh sách tất cả các quyền
       if (role === 'admin') {
         const allPermissions = await this.permissionsService.findAll();
         return {
@@ -236,56 +249,39 @@ export class AuthController {
           permissions: allPermissions.map(p => ({
             id: (p as any as Document).id,
             resource: p.resource,
-            action: p.action
+            action: p.action,
           })),
-          isAdmin: true
+          isAdmin: true,
         };
       }
 
-      // Đối với người dùng khác, lấy quyền từ bảng user_permissions và role_permissions
       const userPermissions = await this.permissionsService.getUserPermissions(userId);
-      const permissions = userPermissions.map(permission => ({
-        id: permission._id.toString(),
-        resource: permission.resource,
-        action: permission.action,
-        source: permission.source
-      }));
-
-      this.logger.log(`✅ Lấy ${permissions.length} quyền thành công cho người dùng ${userId}`);
-
       return {
         role,
-        permissions,
-        isAdmin: role === 'admin'
+        permissions: userPermissions.map(permission => ({
+          id: permission._id.toString(),
+          resource: permission.resource,
+          action: permission.action,
+          source: permission.source,
+        })),
+        isAdmin: false,
       };
     } catch (error) {
       const err = error as Error;
-      this.logger.error(
-        `❌ Lỗi khi lấy quyền người dùng: ${err.message}`,
-        err.stack
-      );
+      this.logger.error(`❌ Lỗi khi lấy quyền người dùng: ${err.message}`, err.stack);
       throw error;
     }
   }
 
-  // 📋 Lấy danh sách tất cả người dùng (Chỉ Admin)
+  // 📋 Lấy danh sách tất cả người dùng
   @Get('users')
   @UseGuards(JwtAuthGuard)
   async getAllUsers() {
-    this.logger.log('📋 Đang lấy danh sách tất cả người dùng...');
-
     try {
-      const result = await this.userService.getAllUsers();
-      this.logger.log(
-        `✅ Lấy danh sách người dùng thành công, tổng cộng: ${result.length} người dùng`,
-      );
-      return result;
+      return await this.userService.getAllUsers();
     } catch (error) {
       const err = error as AuthError;
-      this.logger.error(
-        `❌ Lỗi khi lấy danh sách người dùng: ${err.message}`,
-        err.stack,
-      );
+      this.logger.error(`❌ Lỗi khi lấy danh sách người dùng: ${err.message}`, err.stack);
       throw error;
     }
   }
@@ -298,19 +294,11 @@ export class AuthController {
     @Body() updateUserDto: UpdateProfileDto,
   ) {
     const userId = req.user.userId;
-    this.logger.log(`✏️ Đang cập nhật thông tin người dùng với ID: ${userId}`);
-    this.logger.debug(`Dữ liệu cập nhật: ${JSON.stringify(updateUserDto)}`);
-
     try {
-      const result = await this.userService.updateUser(userId, updateUserDto);
-      this.logger.log(`✅ Cập nhật thông tin thành công cho ID: ${userId}`);
-      return result;
+      return await this.userService.updateUser(userId, updateUserDto);
     } catch (error) {
       const err = error as AuthError;
-      this.logger.error(
-        `❌ Lỗi khi cập nhật thông tin người dùng: ${err.message}`,
-        err.stack,
-      );
+      this.logger.error(`❌ Lỗi khi cập nhật thông tin người dùng: ${err.message}`, err.stack);
       throw error;
     }
   }
@@ -322,6 +310,7 @@ export class AuthController {
     return;
   }
 
+  // 🔄 Google OAuth callback — cấp access + refresh token (đồng nhất với login thường)
   @Get('google/redirect')
   @UseGuards(GoogleAuthGuard)
   async googleAuthRedirect(@Req() req: RequestWithUser, @Res() res: Response) {
@@ -330,66 +319,158 @@ export class AuthController {
         throw new BadRequestException('Google login failed');
       }
 
-      // ✅ Xử lý đăng nhập hoặc tạo user mới
-      const { user, token } = await this.authService.validateGoogleUser(req.user);
+      // ✅ Phase 3: Nhận đủ access + refresh token (đồng nhất với login thường)
+      const { user, accessToken, refreshToken } = await this.authService.validateGoogleUser(req.user);
 
       if (!user) {
         throw new BadRequestException('Xác thực Google thất bại');
       }
 
-      // ✅ Set access token vào HttpOnly cookie — KHÔNG để token xuất hiện trên URL
-      res.cookie(JWT_COOKIE_NAME, token, getAccessCookieOptions(this.configService));
+      // ✅ Set cả 2 HttpOnly cookies — token KHÔNG xuất hiện trên URL
+      res.cookie(JWT_COOKIE_NAME, accessToken, getAccessCookieOptions(this.configService));
+      res.cookie(REFRESH_COOKIE_NAME, refreshToken, getRefreshCookieOptions(this.configService));
+
+      this.auditLogService.log({
+        type: 'GOOGLE_LOGIN_SUCCESS',
+        severity: 'INFO',
+        email: user.email,
+        ip: AuditLogService.extractIp(req),
+        userAgent: AuditLogService.extractUserAgent(req),
+        metadata: { role: user.role },
+      });
 
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
       const dashboardUrl = this.configService.get<string>('FRONTEND_DASHBOARD_URL') || `${frontendUrl}/dashboard`;
-
       const redirectUrl = user.role === 'admin' ? dashboardUrl : `${frontendUrl}/`;
 
-      this.logger.log(`✅ Google auth successful for user: ${user.email}`);
       return res.redirect(redirectUrl);
     } catch (error) {
       this.logger.error('❌ Lỗi xác thực Google:', error);
+      this.auditLogService.log({
+        type: 'GOOGLE_LOGIN_FAILED',
+        severity: 'WARN',
+        ip: AuditLogService.extractIp(req),
+        userAgent: AuditLogService.extractUserAgent(req),
+        metadata: { reason: (error as Error).message },
+      });
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
       return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
     }
   }
 
+  // 🔑 Password reset — throttle: 3/15min (chống email bombing)
+  @Throttle({ reset: { limit: 3, ttl: 900_000 } })
   @Post('request-password-reset')
-  async requestPasswordReset(@Body() dto: RequestPasswordResetDto) {
-    return this.authService.requestPasswordReset(dto);
+  async requestPasswordReset(
+    @Body() dto: RequestPasswordResetDto,
+    @Req() req: ExpressRequest,
+  ) {
+    const result = await this.authService.requestPasswordReset(dto);
+    this.auditLogService.log({
+      type: 'PASSWORD_RESET_REQUESTED',
+      severity: 'INFO',
+      ip: AuditLogService.extractIp(req),
+      userAgent: AuditLogService.extractUserAgent(req),
+      // Không log email để tránh tiết lộ qua log stream
+    });
+    return result;
   }
 
+  // 🔢 Verify OTP — throttle: 5/min (chống brute-force OTP)
+  @Throttle({ otp: { limit: 5, ttl: 60_000 } })
   @Post('verify-otp')
-  async verifyOtp(@Body() dto: VerifyOtpDto) {
-    return this.authService.verifyOtp(dto);
+  async verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: ExpressRequest) {
+    try {
+      const result = await this.authService.verifyOtp(dto);
+      this.auditLogService.log({
+        type: 'OTP_VERIFIED',
+        severity: 'INFO',
+        ip: AuditLogService.extractIp(req),
+        userAgent: AuditLogService.extractUserAgent(req),
+      });
+      return result;
+    } catch (error) {
+      this.auditLogService.log({
+        type: 'OTP_FAILED',
+        severity: 'WARN',
+        ip: AuditLogService.extractIp(req),
+        userAgent: AuditLogService.extractUserAgent(req),
+      });
+      throw error;
+    }
   }
 
+  // 🔒 Reset password với JWT token
+  @Throttle({ otp: { limit: 5, ttl: 60_000 } })
   @Post('reset-password/token')
-  async resetPasswordWithToken(@Body() dto: ResetPasswordWithTokenDto) {
-    return this.authService.resetPasswordWithToken(dto);
+  async resetPasswordWithToken(
+    @Body() dto: ResetPasswordWithTokenDto,
+    @Req() req: ExpressRequest,
+  ) {
+    try {
+      const result = await this.authService.resetPasswordWithToken(dto);
+      this.auditLogService.log({
+        type: 'PASSWORD_RESET_COMPLETED',
+        severity: 'INFO',
+        ip: AuditLogService.extractIp(req),
+        userAgent: AuditLogService.extractUserAgent(req),
+        metadata: { method: 'token' },
+      });
+      return result;
+    } catch (error) {
+      this.auditLogService.log({
+        type: 'PASSWORD_RESET_FAILED',
+        severity: 'WARN',
+        ip: AuditLogService.extractIp(req),
+        userAgent: AuditLogService.extractUserAgent(req),
+        metadata: { method: 'token', reason: (error as Error).message },
+      });
+      throw error;
+    }
   }
 
+  // 🔒 Reset password với OTP
+  @Throttle({ otp: { limit: 5, ttl: 60_000 } })
   @Post('reset-password/otp')
-  async resetPasswordWithOtp(@Body() dto: ResetPasswordWithOtpDto) {
-    return this.authService.resetPasswordWithOtp(dto);
+  async resetPasswordWithOtp(
+    @Body() dto: ResetPasswordWithOtpDto,
+    @Req() req: ExpressRequest,
+  ) {
+    try {
+      const result = await this.authService.resetPasswordWithOtp(dto);
+      this.auditLogService.log({
+        type: 'PASSWORD_RESET_COMPLETED',
+        severity: 'INFO',
+        ip: AuditLogService.extractIp(req),
+        userAgent: AuditLogService.extractUserAgent(req),
+        metadata: { method: 'otp' },
+      });
+      return result;
+    } catch (error) {
+      this.auditLogService.log({
+        type: 'OTP_FAILED',
+        severity: 'WARN',
+        ip: AuditLogService.extractIp(req),
+        userAgent: AuditLogService.extractUserAgent(req),
+        metadata: { method: 'otp-reset', reason: (error as Error).message },
+      });
+      throw error;
+    }
   }
 
   @Get('check-permission')
   @UseGuards(JwtAuthGuard)
   async checkPermission(@Request() req) {
     try {
-      const userId = req.user.id;
+      const userId = req.user.userId;
       const userPermissions = await this.permissionsService.getUserPermissions(userId);
-
-      const permissions = userPermissions.map(up => ({
-        resource: up.resource,
-        action: up.action,
-        source: up.source
-      }));
-
       return {
         success: true,
-        permissions,
+        permissions: userPermissions.map(up => ({
+          resource: up.resource,
+          action: up.action,
+          source: up.source,
+        })),
       };
     } catch (error) {
       throw new UnauthorizedException('Error checking permissions');

@@ -18,6 +18,8 @@ import { PermissionsModule } from '../permissions/permissions.module';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { ManagerPermissionsModule } from '../manager-permissions/manager-permissions.module';
 import { Auth, AuthSchema } from './schemas/auth.schema';
+import { SecurityEvent, SecurityEventSchema } from './schemas/security-event.schema';
+import { AuditLogService } from './services/audit-log.service';
 
 @Module({
   imports: [
@@ -41,10 +43,11 @@ import { Auth, AuthSchema } from './schemas/auth.schema';
       { name: User.name, schema: UserSchema },
       { name: Otp.name, schema: OtpSchema },
       { name: Auth.name, schema: AuthSchema },
+      { name: SecurityEvent.name, schema: SecurityEventSchema },
     ]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, TokenService, JwtStrategy, GoogleStrategy, JwtAuthGuard],
-  exports: [AuthService, TokenService, JwtStrategy, JwtModule, JwtAuthGuard],
+  providers: [AuthService, TokenService, JwtStrategy, GoogleStrategy, JwtAuthGuard, AuditLogService],
+  exports: [AuthService, TokenService, JwtStrategy, JwtModule, JwtAuthGuard, AuditLogService],
 })
 export class AuthModule { }

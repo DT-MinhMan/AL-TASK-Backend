@@ -28,6 +28,7 @@ import { PermissionsService } from '../../permissions/services/permissions.servi
 import { Permission } from 'src/modules/permissions/schemas/permission.schema';
 import { Auth } from '../schemas/auth.schema';
 import { Types } from 'mongoose';
+import { AuditLogService } from './audit-log.service';
 
 // Define permission interface
 interface PermissionInfo {
@@ -50,6 +51,7 @@ export class AuthService implements OnModuleInit {
     @InjectModel(Auth.name) private readonly authModel: Model<Auth>,
     private readonly verifyService: VerifyService,
     private readonly permissionsService: PermissionsService,
+    private readonly auditLogService: AuditLogService,
   ) { }
 
   // SEC-9: Fail fast nếu thiếu secret bắt buộc
@@ -207,6 +209,7 @@ export class AuthService implements OnModuleInit {
 
   /**
    * 🔄 Refresh Access Token
+   * SEC-8: Atomic consume + token family theft detection
    */
   async refreshAccessToken(refreshToken: string): Promise<{
     success: boolean;
@@ -214,7 +217,7 @@ export class AuthService implements OnModuleInit {
     refreshToken: string;
   }> {
     try {
-      // ✅ Verify refresh token
+      // 1. Verify JWT signature (cheap, no DB hit)
       const decoded = this.jwtService.verify(refreshToken, {
         secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
       }) as any;
@@ -223,42 +226,91 @@ export class AuthService implements OnModuleInit {
         throw new UnauthorizedException('Token không phải là refresh token');
       }
 
-      // ✅ Check if refresh token still valid in DB (query bằng hash)
-      const refreshTokenRecord = await this.tokenModel.findOne({
-        token: this.hashToken(refreshToken),
-        status: true,
-        type: 'refresh',
-      });
+      // 2. SEC-8 + TOCTOU fix: Atomically mark token as consumed
+      //    findOneAndUpdate chỉ trả về doc nếu tìm thấy với status: true
+      //    Hai request đồng thời: request đầu thành công, request sau nhận null → không race
+      const consumed = await this.tokenModel.findOneAndUpdate(
+        { token: this.hashToken(refreshToken), status: true, type: 'refresh' },
+        { $set: { status: false } },
+        { new: false }, // trả về document TRƯỚC khi update
+      );
 
-      if (!refreshTokenRecord) {
+      if (!consumed) {
+        // Token không active — kiểm tra xem có bị reuse không (SEC-8 theft detection)
+        const revokedToken = await this.tokenModel.findOne({
+          token: this.hashToken(refreshToken),
+          status: false,
+          type: 'refresh',
+        });
+
+        if (revokedToken?.familyId) {
+          // Grace period 15s để tránh false-positive với concurrent refresh từ cùng client
+          const revokedAgeMs = Date.now() - revokedToken.updatedAt.getTime();
+          const CONCURRENT_GRACE_MS = 15_000;
+
+          if (revokedAgeMs > CONCURRENT_GRACE_MS) {
+            // Revoke toàn bộ family — buộc re-login trên tất cả thiết bị
+            await this.tokenModel.updateMany(
+              { familyId: revokedToken.familyId, status: true },
+              { $set: { status: false } },
+            );
+            this.logger.error(
+              `🚨 REFRESH TOKEN THEFT DETECTED — familyId: ${revokedToken.familyId}, userId: ${revokedToken.userId}`,
+            );
+            this.auditLogService.log({
+              type: 'TOKEN_FAMILY_REVOKED',
+              severity: 'CRITICAL',
+              userId: revokedToken.userId?.toString(),
+              metadata: { familyId: revokedToken.familyId, revokedAgeMs },
+            });
+            throw new UnauthorizedException({
+              statusCode: 401,
+              error: 'TOKEN_FAMILY_REVOKED',
+              message:
+                'Phiên đăng nhập bị thu hồi do phát hiện dấu hiệu bất thường. Vui lòng đăng nhập lại.',
+            });
+          }
+
+          // Trong grace period — có thể là concurrent request, vẫn ghi cảnh báo
+          this.auditLogService.log({
+            type: 'REFRESH_REUSED',
+            severity: 'WARN',
+            userId: revokedToken.userId?.toString(),
+            metadata: { familyId: revokedToken.familyId, revokedAgeMs, withinGrace: true },
+          });
+        }
+
         throw new UnauthorizedException('Refresh token không hợp lệ hoặc đã hết hạn');
       }
 
-      // ✅ Get user info
+      // 3. Get user info
       const user = await this.usersService.getUserById(decoded.userId);
       if (!user) {
         throw new UnauthorizedException('User không tồn tại');
       }
 
-      // ✅ Revoke old access token
+      // 4. Revoke old access tokens
       await this.tokenModel.updateMany(
         { userId: decoded.userId, type: 'access', status: true },
-        { status: false }
+        { $set: { status: false } },
       );
 
-      // ✅ Create new access token
+      // 5. Issue new tokens
       const newAccessToken = this.createAccessToken(
         user._id.toString(),
         user.email,
         user.role,
         user.fullName,
-        user.avatar
+        user.avatar,
       );
-
-      // ✅ Create new refresh token (rotate refresh token for security)
       const newRefreshToken = this.createRefreshToken(user._id.toString());
 
-      // ✅ Save new access token to DB (chỉ lưu hash)
+      // 6. Inherit familyId từ token vừa consumed (kế thừa chain)
+      const familyId = consumed.familyId ?? randomBytes(16).toString('hex');
+
+      const accessExpiry  = new Date(Date.now() + 15 * 60 * 1000);          // 15m
+      const refreshExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7d
+
       await this.tokenModel.create({
         userId: user._id.toString(),
         email: user.email,
@@ -267,9 +319,9 @@ export class AuthService implements OnModuleInit {
         deviceInfo: 'Web',
         status: true,
         type: 'access',
+        expiresAt: accessExpiry,
       });
 
-      // ✅ Save new refresh token to DB (chỉ lưu hash)
       await this.tokenModel.create({
         userId: user._id.toString(),
         email: user.email,
@@ -277,15 +329,11 @@ export class AuthService implements OnModuleInit {
         deviceInfo: 'Web',
         status: true,
         type: 'refresh',
+        familyId,
+        expiresAt: refreshExpiry,
       });
 
-      // ✅ Revoke old refresh token (query bằng hash)
-      await this.tokenModel.updateOne(
-        { token: this.hashToken(refreshToken) },
-        { status: false }
-      );
-
-      this.logger.debug(`🔄 Token refreshed for userId: ${decoded.userId}`);
+      this.logger.debug(`🔄 Token rotated — userId: ${decoded.userId}, family: ${familyId}`);
 
       return {
         success: true,
@@ -366,6 +414,12 @@ export class AuthService implements OnModuleInit {
       // ✅ Tạo refresh token (7d)
       const refreshToken = this.createRefreshToken(userId);
 
+      // SEC-8: familyId mới cho mỗi login session
+      const familyId = randomBytes(16).toString('hex');
+
+      const accessExpiry  = new Date(Date.now() + 15 * 60 * 1000);          // 15m
+      const refreshExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7d
+
       // ✅ Lưu access token vào database (chỉ lưu hash)
       await this.tokenModel.create({
         userId,
@@ -375,9 +429,10 @@ export class AuthService implements OnModuleInit {
         deviceInfo: 'Web',
         status: true,
         type: 'access',
+        expiresAt: accessExpiry,
       });
 
-      // ✅ Lưu refresh token vào database (chỉ lưu hash)
+      // ✅ Lưu refresh token vào database (chỉ lưu hash + familyId mới)
       await this.tokenModel.create({
         userId,
         email,
@@ -385,9 +440,11 @@ export class AuthService implements OnModuleInit {
         deviceInfo: 'Web',
         status: true,
         type: 'refresh',
+        familyId,
+        expiresAt: refreshExpiry,
       });
 
-      this.logger.debug(`🔑 Tokens đã được tạo và lưu cho userId: ${userId}`);
+      this.logger.debug(`🔑 Tokens đã được tạo và lưu cho userId: ${userId}, family: ${familyId}`);
       return { accessToken, refreshToken };
     } catch (error) {
       const err = error as Error;
@@ -435,13 +492,14 @@ export class AuthService implements OnModuleInit {
   //   }
   // }
 
+  // Phase 3: return type aligned với standard login (access + refresh token)
   async validateGoogleUser(profile: {
     emails?: { value: string }[];
     email?: string;
     id?: string;
     fullName?: string;
     photos?: { value: string }[];
-  }): Promise<{ user: User; token: string }> {
+  }): Promise<{ user: User; accessToken: string; refreshToken: string }> {
     if (!profile || typeof profile !== 'object') {
       throw new BadRequestException(
         'Lỗi xác thực Google: Dữ liệu không hợp lệ',
@@ -511,16 +569,16 @@ export class AuthService implements OnModuleInit {
         throw new BadRequestException('Lỗi xử lý thông tin người dùng');
       }
 
-      // 🛠 Tạo và lưu token sử dụng MongoDB _id
-      const token = await this.tokenService.createAndSaveToken(
+      // Phase 3: issue access + refresh token pair — đồng nhất với login thường
+      const { accessToken, refreshToken } = await this.createAndSaveTokens(
         currentUser._id.toString(),
         currentUser.email,
         currentUser.role,
         currentUser.fullName,
-        currentUser.avatar
+        currentUser.avatar,
       );
 
-      return { user: currentUser, token };
+      return { user: currentUser, accessToken, refreshToken };
     } catch (error) {
       this.logger.error('❌ Lỗi trong quá trình xác thực Google:', error);
       if (error instanceof BadRequestException) {
@@ -554,11 +612,11 @@ export class AuthService implements OnModuleInit {
       },
     );
 
-    // Lưu token vào database
+    // Lưu token vào database — hash trước khi lưu (nhất quán với access/refresh)
     await this.tokenModel.create({
       userId: user._id,
       email: user.email,
-      token: resetToken,
+      token: this.hashToken(resetToken),
       deviceInfo: 'Password Reset',
       status: true,
       type: 'password-reset',
@@ -617,10 +675,11 @@ export class AuthService implements OnModuleInit {
         throw new BadRequestException('Token không hợp lệ');
       }
 
-      // Kiểm tra token trong database
+      // Kiểm tra token trong database — query bằng hash (nhất quán với access/refresh)
       const tokenRecord = await this.tokenModel.findOne({
-        token: dto.token,
+        token: this.hashToken(dto.token),
         status: true,
+        type: 'password-reset',
       });
 
       if (!tokenRecord) {
@@ -631,9 +690,9 @@ export class AuthService implements OnModuleInit {
       const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
       await this.usersService.updatePassword(tokenRecord.email, hashedPassword);
 
-      // Vô hiệu hóa token
+      // Vô hiệu hóa token — revoke bằng hash
       await this.tokenModel.updateOne(
-        { token: dto.token },
+        { token: this.hashToken(dto.token) },
         { status: false },
       );
 

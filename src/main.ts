@@ -17,14 +17,17 @@ async function bootstrap() {
 
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-    // ✅ Hỗ trợ dữ liệu lớn
+    // Trust reverse proxy (Nginx) — cần thiết cho rate limiting theo IP thực
+    app.set('trust proxy', 1);
+
+    //  Hỗ trợ dữ liệu lớn
     app.use(express.json({ limit: '50mb' }));
     app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-    // ✅ Hỗ trợ Cookie Parser (cho HttpOnly Cookie Auth)
+    //  Hỗ trợ Cookie Parser (cho HttpOnly Cookie Auth)
     app.use(cookieParser());
 
-    // ✅ Bật CORS cho frontend gửi API với credentials
+    //  Bật CORS cho frontend gửi API với credentials
     app.enableCors({
       origin: process.env.FRONTEND_URL,
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
@@ -32,7 +35,6 @@ async function bootstrap() {
       credentials: true, // ✅ Cho phép gửi cookies
     });
 
-    // ? D�ng ValidationPipe d? ki?m tra d? li?u d?u v�o
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -41,14 +43,12 @@ async function bootstrap() {
       }),
     );
 
-    // ? Cho ph�p truy c?p t?p tinh trong thu m?c `uploads/`
     app.useStaticAssets(join(__dirname, '..', 'uploads'), {
       prefix: '/uploads',
     });
 
     const PORT = process.env.PORT || 5512;
 
-    // ? Ch?y server ? d?ng HTTP � SSL s? do Nginx x? l�
     await app.listen(PORT);
     console.log(`? Backend dang ch?y t?i: http://localhost:${PORT}`);
   } catch (error) {

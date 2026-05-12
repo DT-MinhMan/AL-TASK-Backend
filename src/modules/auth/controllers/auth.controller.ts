@@ -24,8 +24,10 @@ import { RefreshTokenDto } from '../dtos/refresh-token.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { Response, Request as ExpressRequest } from 'express';
 import { ConfigService } from '@nestjs/config';
-import { getAccessCookieOptions, getRefreshCookieOptions, JWT_COOKIE_NAME, REFRESH_COOKIE_NAME } from '../../../config/cookie.config';
 import { AuditLogService } from '../services/audit-log.service';
+import { clearAuthCookies, setAuthCookies } from '../utils/cookie.utils';
+import { COOKIE_NAMES } from '../constants/cookie.constants';
+import { SECURITY_EVENT_TYPES } from '../constants/audit.constants';
 
 // Interface để định nghĩa kiểu dữ liệu của req.user
 interface RequestWithUser extends ExpressRequest {
@@ -73,7 +75,7 @@ export class AuthController {
     try {
       const result = await this.authService.register(registerDto);
       this.auditLogService.log({
-        type: 'REGISTER_SUCCESS',
+        type: SECURITY_EVENT_TYPES.REGISTER_SUCCESS,
         severity: 'INFO',
         email: registerDto.email,
         ip: AuditLogService.extractIp(req),
@@ -83,7 +85,7 @@ export class AuthController {
     } catch (error) {
       const err = error as Error;
       this.auditLogService.log({
-        type: 'REGISTER_FAILED',
+        type: SECURITY_EVENT_TYPES.REGISTER_FAILED,
         severity: 'WARN',
         email: registerDto.email,
         ip: AuditLogService.extractIp(req),
@@ -109,11 +111,10 @@ export class AuthController {
       const result = await this.authService.login(loginDto);
 
       // ✅ Set cả 2 tokens vào HttpOnly Cookie
-      res.cookie(JWT_COOKIE_NAME, result.accessToken, getAccessCookieOptions(this.configService));
-      res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, getRefreshCookieOptions(this.configService));
+      setAuthCookies(res, this.configService, { accessToken: result.accessToken, refreshToken: result.refreshToken });
 
       this.auditLogService.log({
-        type: 'LOGIN_SUCCESS',
+        type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
         severity: 'INFO',
         email: loginDto.email,
         ip: AuditLogService.extractIp(req),
@@ -125,7 +126,7 @@ export class AuthController {
     } catch (error) {
       const err = error as AuthError;
       this.auditLogService.log({
-        type: 'LOGIN_FAILED',
+        type: SECURITY_EVENT_TYPES.LOGIN_FAILED,
         severity: 'WARN',
         email: loginDto.email,
         ip: AuditLogService.extractIp(req),
@@ -146,27 +147,19 @@ export class AuthController {
   ) {
     const userId = req.user?.userId;
 
-    const accessTokenFromCookie = req.cookies?.[JWT_COOKIE_NAME];
+    const accessTokenFromCookie = req.cookies?.[COOKIE_NAMES.ACCESS];
     const authHeader = (req.headers as any)['authorization'] as string | undefined;
     const accessTokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
     const accessToken = accessTokenFromCookie || accessTokenFromHeader;
-    const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
+    const refreshToken = req.cookies?.[COOKIE_NAMES.REFRESH];
 
     try {
       const result = await this.authService.logout(accessToken, refreshToken);
 
-      const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
-      const clearOptions = {
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: (isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
-        path: '/',
-      };
-      res.clearCookie(JWT_COOKIE_NAME, clearOptions);
-      res.clearCookie(REFRESH_COOKIE_NAME, clearOptions);
+      clearAuthCookies(res, this.configService);
 
       this.auditLogService.log({
-        type: 'LOGOUT',
+        type: SECURITY_EVENT_TYPES.LOGOUT,
         severity: 'INFO',
         userId,
         ip: AuditLogService.extractIp(req),
@@ -190,7 +183,7 @@ export class AuthController {
     @Body() body: RefreshTokenDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME] ?? body?.refreshToken;
+    const refreshToken = req.cookies?.[COOKIE_NAMES.REFRESH] ?? body?.refreshToken;
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token không tồn tại');
@@ -199,8 +192,7 @@ export class AuthController {
     try {
       const result = await this.authService.refreshAccessToken(refreshToken);
 
-      res.cookie(JWT_COOKIE_NAME, result.accessToken, getAccessCookieOptions(this.configService));
-      res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, getRefreshCookieOptions(this.configService));
+      setAuthCookies(res, this.configService, { accessToken: result.accessToken, refreshToken: result.refreshToken });
 
       return { success: true, message: 'Làm mới token thành công' };
     } catch (error) {

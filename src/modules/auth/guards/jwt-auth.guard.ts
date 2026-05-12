@@ -6,25 +6,11 @@ import {
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Request } from 'express';
 import { TokenService } from '../services/token.service';
-import { JWT_COOKIE_NAME } from '../../../config/cookie.config';
-
-
-// Định nghĩa kiểu payload của JWT
-interface JwtPayload {
-  userId: string;
-  email?: string;
-  role?: string;
-  type?: string;
-  iat?: number;
-  exp?: number;
-}
-
-// Định nghĩa kiểu Request có user
-interface RequestWithUser extends Request {
-  user?: JwtPayload;
-}
+import { COOKIE_NAMES } from '../constants/cookie.constants';
+import { JwtPayload } from '../types/jwt-payload.type';
+import { RequestWithUser } from '../interfaces/request-with-user.interface';
+import { AUTH_ERROR_CODES } from '../constants/auth-error.constants';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -39,7 +25,7 @@ export class JwtAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<RequestWithUser>();
 
     // ✅ Ưu tiên access token từ HttpOnly cookie, fallback sang Authorization Bearer
-    let token: string | undefined = request.cookies?.[JWT_COOKIE_NAME];
+    let token: string | undefined = request.cookies?.[COOKIE_NAMES.ACCESS];
 
     if (!token) {
       const authHeader = request.headers.authorization;
@@ -63,7 +49,7 @@ export class JwtAuthGuard implements CanActivate {
           this.logger.warn(`⚠️ Access token đã hết hạn - yêu cầu refresh`);
           throw new UnauthorizedException({
             statusCode: 401,
-            error: 'TOKEN_EXPIRED',
+            error: AUTH_ERROR_CODES.TOKEN_EXPIRED,
             message: 'Access token đã hết hạn, vui lòng gọi /auth/refresh',
           });
         }
@@ -83,7 +69,7 @@ export class JwtAuthGuard implements CanActivate {
       this.logger.warn(`⚠️ Token đã bị thu hồi hoặc không tồn tại: userId ${decoded.userId}`);
       throw new UnauthorizedException({
         statusCode: 401,
-        error: 'TOKEN_REVOKED',
+        error: AUTH_ERROR_CODES.TOKEN_REVOKED,
         message: 'Token đã bị thu hồi hoặc không còn hợp lệ',
       });
     }

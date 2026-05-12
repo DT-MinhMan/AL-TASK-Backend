@@ -13,6 +13,8 @@ import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
 import { UsersService } from '../../users/services/users.service';
 import { AuditLogService } from './audit-log.service';
+import { TOKEN_TYPES } from '../constants/token.constants';
+import { SECURITY_EVENT_TYPES } from '../constants/audit.constants';
 
 @Injectable()
 export class TokenService {
@@ -94,7 +96,7 @@ export class TokenService {
         token: this.hashToken(accessToken),
         deviceInfo: 'Web',
         status: true,
-        type: 'access',
+        type: TOKEN_TYPES.ACCESS,
         expiresAt: accessExpiry,
       });
 
@@ -104,7 +106,7 @@ export class TokenService {
         token: this.hashToken(refreshToken),
         deviceInfo: 'Web',
         status: true,
-        type: 'refresh',
+        type: TOKEN_TYPES.REFRESH,
         familyId,
         expiresAt: refreshExpiry,
       });
@@ -125,12 +127,13 @@ export class TokenService {
     fullName?: string,
     avatar?: string,
   ): string {
-    const payload = { userId, email, role, fullName, avatar, type: 'access' };
+    const payload = { userId, email, role, fullName, avatar, type: TOKEN_TYPES.ACCESS };
     return this.jwtService.sign(payload);
   }
 
   private createRefreshToken(userId: string): string {
-    const payload = { userId, type: 'refresh' };
+    // Add jti to avoid identical JWT when issued within same second (token field has unique index)
+    const payload = { userId, type: TOKEN_TYPES.REFRESH, jti: randomBytes(8).toString('hex') };
     return this.jwtService.sign(payload, {
       secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
       expiresIn: this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN') || '7d',
@@ -170,12 +173,12 @@ export class TokenService {
         secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
       }) as any;
 
-      if (decoded.type !== 'refresh') {
+      if (decoded.type !== TOKEN_TYPES.REFRESH) {
         throw new UnauthorizedException('Token không phải là refresh token');
       }
 
       const consumed = await this.tokenModel.findOneAndUpdate(
-        { token: this.hashToken(refreshToken), status: true, type: 'refresh' },
+        { token: this.hashToken(refreshToken), status: true, type: TOKEN_TYPES.REFRESH },
         { $set: { status: false } },
         { new: false },
       );
@@ -184,7 +187,7 @@ export class TokenService {
         const revokedToken = await this.tokenModel.findOne({
           token: this.hashToken(refreshToken),
           status: false,
-          type: 'refresh',
+          type: TOKEN_TYPES.REFRESH,
         });
 
         if (revokedToken?.familyId) {
@@ -200,21 +203,21 @@ export class TokenService {
               `🚨 REFRESH TOKEN THEFT DETECTED — familyId: ${revokedToken.familyId}, userId: ${revokedToken.userId}`,
             );
             this.auditLogService.log({
-              type: 'TOKEN_FAMILY_REVOKED',
+              type: SECURITY_EVENT_TYPES.TOKEN_FAMILY_REVOKED,
               severity: 'CRITICAL',
               userId: revokedToken.userId?.toString(),
               metadata: { familyId: revokedToken.familyId, revokedAgeMs },
             });
             throw new UnauthorizedException({
               statusCode: 401,
-              error: 'TOKEN_FAMILY_REVOKED',
+              error: SECURITY_EVENT_TYPES.TOKEN_FAMILY_REVOKED,
               message:
                 'Phiên đăng nhập bị thu hồi do phát hiện dấu hiệu bất thường. Vui lòng đăng nhập lại.',
             });
           }
 
           this.auditLogService.log({
-            type: 'REFRESH_REUSED',
+            type: SECURITY_EVENT_TYPES.REFRESH_REUSED,
             severity: 'WARN',
             userId: revokedToken.userId?.toString(),
             metadata: { familyId: revokedToken.familyId, revokedAgeMs, withinGrace: true },
@@ -230,7 +233,7 @@ export class TokenService {
       }
 
       await this.tokenModel.updateMany(
-        { userId: decoded.userId, type: 'access', status: true },
+        { userId: decoded.userId, type: TOKEN_TYPES.ACCESS, status: true },
         { $set: { status: false } },
       );
 
@@ -255,7 +258,7 @@ export class TokenService {
         token: this.hashToken(newAccessToken),
         deviceInfo: 'Web',
         status: true,
-        type: 'access',
+        type: TOKEN_TYPES.ACCESS,
         expiresAt: accessExpiry,
       });
 
@@ -265,7 +268,7 @@ export class TokenService {
         token: this.hashToken(newRefreshToken),
         deviceInfo: 'Web',
         status: true,
-        type: 'refresh',
+        type: TOKEN_TYPES.REFRESH,
         familyId,
         expiresAt: refreshExpiry,
       });
@@ -307,7 +310,7 @@ export class TokenService {
         .findOne({
           token: this.hashToken(token),
           status: true,
-          type: 'access',
+          type: TOKEN_TYPES.ACCESS,
         })
         .exec();
     } catch (error) {
@@ -325,7 +328,7 @@ export class TokenService {
         .findOne({
           token: this.hashToken(token),
           status: true,
-          type: 'refresh',
+          type: TOKEN_TYPES.REFRESH,
         })
         .exec();
     } catch (error) {

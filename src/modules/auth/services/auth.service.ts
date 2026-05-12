@@ -27,6 +27,7 @@ import { Types } from 'mongoose';
 import { AuditLogService } from './audit-log.service';
 import { PasswordResetService } from './password-reset.service';
 import { OAuthService } from './oauth.service';
+import { TOKEN_TYPES } from '../constants/token.constants';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -206,7 +207,7 @@ export class AuthService implements OnModuleInit {
       role,
       fullName,
       avatar,
-      type: 'access', // ✅ Mark as access token
+      type: TOKEN_TYPES.ACCESS, // ✅ Mark as access token
     };
 
     return this.jwtService.sign(payload);
@@ -218,7 +219,7 @@ export class AuthService implements OnModuleInit {
   private createRefreshToken(userId: string): string {
     const payload = {
       userId,
-      type: 'refresh', // ✅ Mark as refresh token
+      type: TOKEN_TYPES.REFRESH, // ✅ Mark as refresh token
     };
 
     return this.jwtService.sign(payload, {

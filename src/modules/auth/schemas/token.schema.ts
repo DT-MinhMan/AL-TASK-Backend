@@ -3,7 +3,9 @@ import { Document, Types } from 'mongoose';
 
 export type TokenDocument = Token & Document;
 
-export type TokenType = 'access' | 'refresh' | 'password-reset';
+import type { TokenTypeLiteral } from '../constants/token.constants';
+
+export type TokenType = TokenTypeLiteral;
 
 @Schema({ timestamps: true })
 export class Token {
@@ -25,7 +27,11 @@ export class Token {
   @Prop({ default: true })
   status!: boolean;
 
-  @Prop({ type: String, enum: ['access', 'refresh', 'password-reset'], default: 'access' })
+  @Prop({
+    type: String,
+    enum: ['access', 'refresh', 'password-reset'],
+    default: 'access',
+  })
   type!: TokenType;
 
   // SEC-8: Token family — tất cả refresh token cùng session chia sẻ familyId

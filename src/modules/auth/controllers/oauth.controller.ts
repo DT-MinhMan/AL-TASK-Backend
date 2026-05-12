@@ -14,8 +14,9 @@ import { AuthService } from '../services/auth.service';
 import { GoogleAuthGuard } from '../guards/google-auth.guard';
 import { Response, Request as ExpressRequest } from 'express';
 import { ConfigService } from '@nestjs/config';
-import { getAccessCookieOptions, getRefreshCookieOptions, JWT_COOKIE_NAME, REFRESH_COOKIE_NAME } from '../../../config/cookie.config';
 import { AuditLogService } from '../services/audit-log.service';
+import { setAuthCookies } from '../utils/cookie.utils';
+import { SECURITY_EVENT_TYPES } from '../constants/audit.constants';
 
 interface RequestWithUser extends ExpressRequest {
   user: {
@@ -61,11 +62,10 @@ export class OAuthController {
       }
 
       // ✅ Set cả 2 HttpOnly cookies — token KHÔNG xuất hiện trên URL
-      res.cookie(JWT_COOKIE_NAME, accessToken, getAccessCookieOptions(this.configService));
-      res.cookie(REFRESH_COOKIE_NAME, refreshToken, getRefreshCookieOptions(this.configService));
+      setAuthCookies(res, this.configService, { accessToken, refreshToken });
 
       this.auditLogService.log({
-        type: 'GOOGLE_LOGIN_SUCCESS',
+        type: SECURITY_EVENT_TYPES.GOOGLE_LOGIN_SUCCESS,
         severity: 'INFO',
         email: user.email,
         ip: AuditLogService.extractIp(req),
@@ -81,7 +81,7 @@ export class OAuthController {
     } catch (error) {
       this.logger.error('❌ Lỗi xác thực Google:', error);
       this.auditLogService.log({
-        type: 'GOOGLE_LOGIN_FAILED',
+        type: SECURITY_EVENT_TYPES.GOOGLE_LOGIN_FAILED,
         severity: 'WARN',
         ip: AuditLogService.extractIp(req),
         userAgent: AuditLogService.extractUserAgent(req),

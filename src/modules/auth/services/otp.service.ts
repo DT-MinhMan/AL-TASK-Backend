@@ -2,8 +2,8 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
-import { randomInt } from 'crypto';
 import { Otp, OtpDocument } from '../schemas/otp.schema';
+import { generateOtpCode } from '../utils/otp.utils';
 
 @Injectable()
 export class OtpService {
@@ -13,7 +13,7 @@ export class OtpService {
 
   /** SEC-5: OTP cryptographically secure */
   generateOtp(): string {
-    return randomInt(100000, 1000000).toString();
+    return generateOtpCode();
   }
 
   /** SEC-6: Hash OTP before persist */

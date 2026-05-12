@@ -19,6 +19,7 @@ import {
 import { Token, TokenDocument } from '../schemas/token.schema';
 import { TokenService } from './token.service';
 import { OtpService } from './otp.service';
+import { TOKEN_TYPES } from '../constants/token.constants';
 
 @Injectable()
 export class PasswordResetService {
@@ -47,7 +48,7 @@ export class PasswordResetService {
 
     // SEC-10: sign reset token with PASSWORD_RESET_SECRET
     const resetToken = this.jwtService.sign(
-      { email: dto.email, type: 'password-reset' },
+      { email: dto.email, type: TOKEN_TYPES.PASSWORD_RESET },
       {
         secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
         expiresIn: '15m',
@@ -61,7 +62,7 @@ export class PasswordResetService {
       token: this.tokenService.hashToken(resetToken),
       deviceInfo: 'Password Reset',
       status: true,
-      type: 'password-reset',
+      type: TOKEN_TYPES.PASSWORD_RESET,
     });
 
     // OTP 15m
@@ -85,14 +86,14 @@ export class PasswordResetService {
       const payload = this.jwtService.verify(dto.token, {
         secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
       }) as any;
-      if (!payload || payload.type !== 'password-reset') {
+      if (!payload || payload.type !== TOKEN_TYPES.PASSWORD_RESET) {
         throw new BadRequestException('Token không hợp lệ');
       }
 
       const tokenRecord = await this.tokenModel.findOne({
         token: this.tokenService.hashToken(dto.token),
         status: true,
-        type: 'password-reset',
+        type: TOKEN_TYPES.PASSWORD_RESET,
       });
 
       if (!tokenRecord) {

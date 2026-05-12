@@ -1,6 +1,10 @@
 // src/modules/auth/auth.module.ts
 import { Module, forwardRef } from '@nestjs/common';
 import { AuthController } from './controllers/auth.controller';
+import { OAuthController } from './controllers/oauth.controller';
+import { PasswordController } from './controllers/password.controller';
+import { PermissionController } from './controllers/permission.controller';
+import { UserManagementController } from './controllers/user-management.controller';
 import { AuthService } from './services/auth.service';
 import { UsersModule } from '../users/users.module';
 import { TokenService } from './services/token.service';
@@ -46,7 +50,13 @@ import { AuditLogService } from './services/audit-log.service';
       { name: SecurityEvent.name, schema: SecurityEventSchema },
     ]),
   ],
-  controllers: [AuthController],
+  controllers: [
+    AuthController,
+    OAuthController,
+    PasswordController,
+    PermissionController,
+    UserManagementController,
+  ],
   providers: [AuthService, TokenService, JwtStrategy, GoogleStrategy, JwtAuthGuard, AuditLogService],
   exports: [AuthService, TokenService, JwtStrategy, JwtModule, JwtAuthGuard, AuditLogService],
 })

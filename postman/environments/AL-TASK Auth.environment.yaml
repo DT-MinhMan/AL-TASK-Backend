@@ -1,0 +1,30 @@
+name: AL-TASK Auth
+values:
+  - key: baseUrl
+    value: 'http://localhost:3000/api'
+    enabled: true
+    type: default
+  - key: testEmail
+    value: testuser@example.com
+    enabled: true
+    type: default
+  - key: testPassword
+    value: Test@1234
+    enabled: true
+    type: default
+  - key: accessToken
+    value: ''
+    enabled: true
+    type: default
+  - key: refreshToken
+    value: ''
+    enabled: true
+    type: default
+  - key: userId
+    value: ''
+    enabled: true
+    type: default
+  - key: resetToken
+    value: ''
+    enabled: true
+    type: default

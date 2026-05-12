@@ -1,0 +1,15 @@
+$kind: http-request
+name: Check Email (Exists)
+method: GET
+url: '{{baseUrl}}/auth/check-email?email={{testEmail}}'
+order: 14000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Email exists", function () {
+        let data = pm.response.json();
+        if (data.isValid === false) {
+          pm.test("Email is already registered", true);
+        }
+      });

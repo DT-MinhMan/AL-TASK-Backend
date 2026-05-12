@@ -36,13 +36,19 @@ export class JwtAuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<RequestWithUser>(); 
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
 
-    // ✅ Lấy token từ cookie (ưu tiên) hoặc Bearer header
-    let token = request.cookies?.[JWT_COOKIE_NAME];
-      
-    const authHeader = request.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // ✅ Ưu tiên access token từ HttpOnly cookie, fallback sang Authorization Bearer
+    let token: string | undefined = request.cookies?.[JWT_COOKIE_NAME];
+
+    if (!token) {
+      const authHeader = request.headers.authorization;
+      if (authHeader?.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+      }
+    }
+
+    if (!token) {
       this.logger.warn('⚠️ Không tìm thấy token hoặc sai định dạng.');
       throw new UnauthorizedException('Token không hợp lệ hoặc thiếu');
     }
@@ -72,7 +78,7 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Chỉ sử dụng access token cho endpoint này');
     }
 
-    const activeToken = await this.tokenService.findToken(token);
+    const activeToken = await this.tokenService.findActiveAccessToken(token);
     if (!activeToken) {
       this.logger.warn(`⚠️ Token đã bị thu hồi hoặc không tồn tại: userId ${decoded.userId}`);
       throw new UnauthorizedException({

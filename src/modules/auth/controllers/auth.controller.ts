@@ -337,19 +337,16 @@ export class AuthController {
         throw new BadRequestException('Xác thực Google thất bại');
       }
 
-      // ✅ Chuyển hướng đến client với token
+      // ✅ Set access token vào HttpOnly cookie — KHÔNG để token xuất hiện trên URL
+      res.cookie(JWT_COOKIE_NAME, token, getAccessCookieOptions(this.configService));
+
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
       const dashboardUrl = this.configService.get<string>('FRONTEND_DASHBOARD_URL') || `${frontendUrl}/dashboard`;
-      
-      const redirectUrl = user.role === 'admin'
-        ? dashboardUrl
-        : `${frontendUrl}/`;
 
-      // Add token as a query parameter
-      const redirectUrlWithToken = `${redirectUrl}${redirectUrl.includes('?') ? '&' : '?'}token=${token}`;
+      const redirectUrl = user.role === 'admin' ? dashboardUrl : `${frontendUrl}/`;
 
       this.logger.log(`✅ Google auth successful for user: ${user.email}`);
-      return res.redirect(redirectUrlWithToken);
+      return res.redirect(redirectUrl);
     } catch (error) {
       this.logger.error('❌ Lỗi xác thực Google:', error);
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';

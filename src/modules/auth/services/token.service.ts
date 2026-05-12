@@ -84,15 +84,50 @@ export class TokenService {
     }
   }
 
-  // 🔍 Tìm token trong cơ sở dữ liệu (query bằng hash)
+  // 🔍 Tìm access token (không check expiresAt — JWT expiry tự xử lý)
+  async findActiveAccessToken(token: string): Promise<TokenDocument | null> {
+    this.logger.log(`🔍 Tìm access token trong database`);
+    try {
+      return await this.tokenModel
+        .findOne({
+          token: this.hashToken(token),
+          status: true,
+          type: 'access',
+        })
+        .exec();
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(`❌ Lỗi khi tìm access token: ${err.message}`, err.stack);
+      throw new InternalServerErrorException('Không thể tìm thấy token.');
+    }
+  }
+
+  // 🔍 Tìm refresh token (check expiresAt nếu có)
+  async findActiveRefreshToken(token: string): Promise<TokenDocument | null> {
+    this.logger.log(`🔍 Tìm refresh token trong database`);
+    try {
+      return await this.tokenModel
+        .findOne({
+          token: this.hashToken(token),
+          status: true,
+          type: 'refresh',
+        })
+        .exec();
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(`❌ Lỗi khi tìm refresh token: ${err.message}`, err.stack);
+      throw new InternalServerErrorException('Không thể tìm thấy token.');
+    }
+  }
+
+  // 🔍 Legacy: tìm token theo hash (giữ backward compat nội bộ)
   async findToken(token: string): Promise<TokenDocument | null> {
     this.logger.log(`🔍 Tìm token trong database`);
     try {
       return await this.tokenModel
         .findOne({
-          token: this.hashToken(token), // ✅ Băm trước khi query
+          token: this.hashToken(token),
           status: true,
-          expiresAt: { $gt: new Date() }, // ✅ Chỉ lấy token chưa hết hạn
         })
         .exec();
     } catch (error) {

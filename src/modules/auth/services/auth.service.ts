@@ -8,6 +8,7 @@ import {
   Logger,
   BadRequestException,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../users/services/users.service';
@@ -22,7 +23,7 @@ import { VerifyService } from '../../verify/services/verify.service';
 import { User } from '../../users/schemas/users.schema';
 import { RequestPasswordResetDto, ResetPasswordWithTokenDto, ResetPasswordWithOtpDto, VerifyOtpDto } from '../dtos/password-reset.dto';
 import { Otp, OtpDocument } from '../schemas/otp.schema';
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes, createHash, randomInt } from 'crypto';
 import { PermissionsService } from '../../permissions/services/permissions.service';
 import { Permission } from 'src/modules/permissions/schemas/permission.schema';
 import { Auth } from '../schemas/auth.schema';
@@ -36,7 +37,7 @@ interface PermissionInfo {
 }
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
@@ -50,6 +51,18 @@ export class AuthService {
     private readonly verifyService: VerifyService,
     private readonly permissionsService: PermissionsService,
   ) { }
+
+  // SEC-9: Fail fast nếu thiếu secret bắt buộc
+  onModuleInit() {
+    const refreshSecret = this.configService.get<string>('REFRESH_TOKEN_SECRET');
+    if (!refreshSecret) {
+      throw new Error('REFRESH_TOKEN_SECRET is not configured. Application cannot start.');
+    }
+    const passwordResetSecret = this.configService.get<string>('PASSWORD_RESET_SECRET');
+    if (!passwordResetSecret) {
+      throw new Error('PASSWORD_RESET_SECRET is not configured. Application cannot start.');
+    }
+  }
 
   /**
    * 📥 Kiểm tra email trước khi submit
@@ -521,15 +534,24 @@ export class AuthService {
    * 🔄 Yêu cầu đặt lại mật khẩu
    */
   async requestPasswordReset(dto: RequestPasswordResetDto) {
+    // SEC-7: Trả generic message — không tiết lộ email có tồn tại hay không
+    const GENERIC_RESPONSE = {
+      success: true,
+      message: 'Nếu email tồn tại trong hệ thống, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.',
+    };
+
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
-      throw new BadRequestException('Email không tồn tại trong hệ thống');
+      return GENERIC_RESPONSE;
     }
 
-    // Tạo token đặt lại mật khẩu
+    // SEC-10: Ký reset token bằng PASSWORD_RESET_SECRET riêng
     const resetToken = this.jwtService.sign(
       { email: dto.email, type: 'password-reset' },
-      { expiresIn: '15m' },
+      {
+        secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
+        expiresIn: '15m',
+      },
     );
 
     // Lưu token vào database
@@ -539,40 +561,40 @@ export class AuthService {
       token: resetToken,
       deviceInfo: 'Password Reset',
       status: true,
+      type: 'password-reset',
     });
 
-    // Tạo OTP 6 số
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // SEC-5: OTP cryptographically secure với randomInt
+    const otp = randomInt(100000, 1000000).toString();
 
-    // Lưu OTP vào database với thời hạn 15 phút
+    // SEC-6: Hash OTP trước khi lưu DB
+    const hashedOtp = await bcrypt.hash(otp, 10);
+
     await this.otpModel.create({
       email: dto.email,
-      code: otp,
+      code: hashedOtp,
       expiresAt: new Date(Date.now() + 15 * 60 * 1000),
       isUsed: false,
     });
 
-    // Gửi email chứa cả link và OTP
+    // Chỉ gửi OTP plaintext qua email — không bao giờ trả về API response
     await this.verifyService.sendPasswordResetEmail(dto.email, resetToken, otp);
 
-    return {
-      success: true,
-      message: 'Hướng dẫn đặt lại mật khẩu đã được gửi đến email của bạn',
-    };
+    return GENERIC_RESPONSE;
   }
 
   /**
    * ✅ Xác thực OTP
    */
   async verifyOtp(dto: VerifyOtpDto) {
-    const otpRecord = await this.otpModel.findOne({
-      email: dto.email,
-      code: dto.otp,
-      isUsed: false,
-      expiresAt: { $gt: new Date() },
-    });
+    // SEC-6: Fetch bằng email/status — so sánh bằng bcrypt.compare (không query plaintext)
+    const otpRecord = await this.otpModel
+      .findOne({ email: dto.email, isUsed: false, expiresAt: { $gt: new Date() } })
+      .sort({ createdAt: -1 })
+      .exec();
 
-    if (!otpRecord) {
+    const isValid = otpRecord && (await bcrypt.compare(dto.otp, otpRecord.code));
+    if (!isValid) {
       throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
     }
 
@@ -587,8 +609,10 @@ export class AuthService {
    */
   async resetPasswordWithToken(dto: ResetPasswordWithTokenDto) {
     try {
-      // Xác thực token
-      const payload = this.jwtService.verify(dto.token);
+      // SEC-10: Xác thực bằng PASSWORD_RESET_SECRET riêng
+      const payload = this.jwtService.verify(dto.token, {
+        secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
+      });
       if (!payload || payload.type !== 'password-reset') {
         throw new BadRequestException('Token không hợp lệ');
       }
@@ -633,15 +657,14 @@ export class AuthService {
    * 🔑 Đặt lại mật khẩu với OTP
    */
   async resetPasswordWithOtp(dto: ResetPasswordWithOtpDto) {
-    // Xác thực OTP
-    const otpRecord = await this.otpModel.findOne({
-      email: dto.email,
-      code: dto.otp,
-      isUsed: false,
-      expiresAt: { $gt: new Date() },
-    });
+    // SEC-6: Fetch bằng email/status — so sánh bằng bcrypt.compare (không query plaintext)
+    const otpRecord = await this.otpModel
+      .findOne({ email: dto.email, isUsed: false, expiresAt: { $gt: new Date() } })
+      .sort({ createdAt: -1 })
+      .exec();
 
-    if (!otpRecord) {
+    const isValid = otpRecord && (await bcrypt.compare(dto.otp, otpRecord.code));
+    if (!isValid) {
       throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
     }
 

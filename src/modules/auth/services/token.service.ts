@@ -9,6 +9,7 @@ import { Model } from 'mongoose';
 import { Token, TokenDocument } from '../schemas/token.schema';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { createHash } from 'crypto';
 
 @Injectable()
 export class TokenService {
@@ -19,6 +20,10 @@ export class TokenService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
 
   // ✅ Tạo và lưu token vào cơ sở dữ liệu
   async createAndSaveToken(
@@ -50,7 +55,7 @@ export class TokenService {
       const newToken = new this.tokenModel({
         userId,
         email,
-        token,
+        token: this.hashToken(token), 
         deviceInfo,
         status: true,
         expiresAt,
@@ -58,7 +63,7 @@ export class TokenService {
 
       await newToken.save();
       this.logger.log(`✅ Token được lưu thành công vào database cho user: ${email}`);
-      return token;
+      return token; // ✅ Trả về raw token cho client
     } catch (error) {
       const err = error as Error;
       this.logger.error(`❌ Lỗi khi tạo token: ${err.message}`, err.stack);
@@ -68,10 +73,10 @@ export class TokenService {
 
   // 🚪 Đăng xuất và hủy token
   async invalidateToken(token: string): Promise<void> {
-    this.logger.log(`🚪 Hủy token: ${token}`);
+    this.logger.log(`🚪 Hủy token`);
     try {
-      await this.tokenModel.updateOne({ token }, { status: false });
-      this.logger.log(`✅ Token đã được hủy: ${token}`);
+      await this.tokenModel.updateOne({ token: this.hashToken(token) }, { status: false });
+      this.logger.log(`✅ Token đã được hủy`);
     } catch (error) {
       const err = error as Error;
       this.logger.error(`❌ Lỗi khi hủy token: ${err.message}`, err.stack);
@@ -79,13 +84,13 @@ export class TokenService {
     }
   }
 
-  // 🔍 Tìm token trong cơ sở dữ liệu
+  // 🔍 Tìm token trong cơ sở dữ liệu (query bằng hash)
   async findToken(token: string): Promise<TokenDocument | null> {
-    this.logger.log(`🔍 Tìm token trong database: ${token}`);
+    this.logger.log(`🔍 Tìm token trong database`);
     try {
       return await this.tokenModel
         .findOne({
-          token,
+          token: this.hashToken(token), // ✅ Băm trước khi query
           status: true,
           expiresAt: { $gt: new Date() }, // ✅ Chỉ lấy token chưa hết hạn
         })

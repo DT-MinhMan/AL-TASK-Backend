@@ -22,7 +22,7 @@ import { VerifyService } from '../../verify/services/verify.service';
 import { User } from '../../users/schemas/users.schema';
 import { RequestPasswordResetDto, ResetPasswordWithTokenDto, ResetPasswordWithOtpDto, VerifyOtpDto } from '../dtos/password-reset.dto';
 import { Otp, OtpDocument } from '../schemas/otp.schema';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import { PermissionsService } from '../../permissions/services/permissions.service';
 import { Permission } from 'src/modules/permissions/schemas/permission.schema';
 import { Auth } from '../schemas/auth.schema';
@@ -177,9 +177,10 @@ export class AuthService {
     }
 
     try {
-      const tokensToRevoke = [accessToken, refreshToken].filter(Boolean) as string[];
+      const hashedTokens = ([accessToken, refreshToken].filter(Boolean) as string[])
+        .map(t => this.hashToken(t));
       await this.tokenModel.updateMany(
-        { token: { $in: tokensToRevoke } },
+        { token: { $in: hashedTokens } },
         { status: false }
       );
       this.logger.log('Đăng xuất phiên hiện tại thành công');
@@ -209,9 +210,9 @@ export class AuthService {
         throw new UnauthorizedException('Token không phải là refresh token');
       }
 
-      // ✅ Check if refresh token still valid in DB
+      // ✅ Check if refresh token still valid in DB (query bằng hash)
       const refreshTokenRecord = await this.tokenModel.findOne({
-        token: refreshToken,
+        token: this.hashToken(refreshToken),
         status: true,
         type: 'refresh',
       });
@@ -244,30 +245,30 @@ export class AuthService {
       // ✅ Create new refresh token (rotate refresh token for security)
       const newRefreshToken = this.createRefreshToken(user._id.toString());
 
-      // ✅ Save new access token to DB
+      // ✅ Save new access token to DB (chỉ lưu hash)
       await this.tokenModel.create({
         userId: user._id.toString(),
         email: user.email,
         role: user.role,
-        token: newAccessToken,
+        token: this.hashToken(newAccessToken),
         deviceInfo: 'Web',
         status: true,
         type: 'access',
       });
 
-      // ✅ Save new refresh token to DB
+      // ✅ Save new refresh token to DB (chỉ lưu hash)
       await this.tokenModel.create({
         userId: user._id.toString(),
         email: user.email,
-        token: newRefreshToken,
+        token: this.hashToken(newRefreshToken),
         deviceInfo: 'Web',
         status: true,
         type: 'refresh',
       });
 
-      // ✅ Revoke old refresh token
+      // ✅ Revoke old refresh token (query bằng hash)
       await this.tokenModel.updateOne(
-        { token: refreshToken },
+        { token: this.hashToken(refreshToken) },
         { status: false }
       );
 
@@ -329,6 +330,13 @@ export class AuthService {
   }
 
   /**
+   * 🔒 Băm token bằng SHA-256 (tất định) để lưu DB và tra cứu
+   */
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  /**
    * 🛠️ Tạo và lưu cả Access + Refresh Token
    */
   private async createAndSaveTokens(
@@ -345,22 +353,22 @@ export class AuthService {
       // ✅ Tạo refresh token (7d)
       const refreshToken = this.createRefreshToken(userId);
 
-      // ✅ Lưu access token vào database
+      // ✅ Lưu access token vào database (chỉ lưu hash)
       await this.tokenModel.create({
         userId,
         email,
         role,
-        token: accessToken,
+        token: this.hashToken(accessToken),
         deviceInfo: 'Web',
         status: true,
         type: 'access',
       });
 
-      // ✅ Lưu refresh token vào database
+      // ✅ Lưu refresh token vào database (chỉ lưu hash)
       await this.tokenModel.create({
         userId,
         email,
-        token: refreshToken,
+        token: this.hashToken(refreshToken),
         deviceInfo: 'Web',
         status: true,
         type: 'refresh',
@@ -378,41 +386,41 @@ export class AuthService {
   /**
    * 🛠️ Cách cũ - giữ lại để backward compatible
    */
-  private async createAndSaveToken(
-    userId: string,
-    email: string,
-    role: string,
-    fullName?: string,
-    avatar?: string,
-  ): Promise<string> {
-    try {
-      const payload = {
-        userId,
-        email,
-        role,
-        fullName,
-        avatar
-      };
+  // private async createAndSaveToken(
+  //   userId: string,
+  //   email: string,
+  //   role: string,
+  //   fullName?: string,
+  //   avatar?: string,
+  // ): Promise<string> {
+  //   try {
+  //     const payload = {
+  //       userId,
+  //       email,
+  //       role,
+  //       fullName,
+  //       avatar
+  //     };
 
-      const token = this.jwtService.sign(payload);
+  //     const token = this.jwtService.sign(payload);
 
-      await this.tokenModel.create({
-        userId,
-        email,
-        role,
-        token,
-        deviceInfo: 'Web',
-        status: true,
-      });
+  //     await this.tokenModel.create({
+  //       userId,
+  //       email,
+  //       role,
+  //       token,
+  //       deviceInfo: 'Web',
+  //       status: true,
+  //     });
 
-      this.logger.debug(`🔑 Token đã được tạo và lưu cho userId: ${userId}`);
-      return token;
-    } catch (error) {
-      const err = error as Error;
-      this.logger.error(`❌ Error creating token: ${err.message}`, err.stack);
-      throw new InternalServerErrorException('Cannot create authentication token');
-    }
-  }
+  //     this.logger.debug(`🔑 Token đã được tạo và lưu cho userId: ${userId}`);
+  //     return token;
+  //   } catch (error) {
+  //     const err = error as Error;
+  //     this.logger.error(`❌ Error creating token: ${err.message}`, err.stack);
+  //     throw new InternalServerErrorException('Cannot create authentication token');
+  //   }
+  // }
 
   async validateGoogleUser(profile: {
     emails?: { value: string }[];

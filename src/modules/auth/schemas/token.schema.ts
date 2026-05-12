@@ -39,3 +39,12 @@ export class Token {
 }
 
 export const TokenSchema = SchemaFactory.createForClass(Token);
+
+// ✅ Compound index: tối ưu truy vấn revoke theo userId + type + status
+// Dùng cho: updateMany({ userId, type: 'access', status: true }, { status: false })
+TokenSchema.index({ userId: 1, type: 1, status: 1 });
+
+// ✅ Compound index: tối ưu truy vấn token lookup kết hợp status và type
+// Dùng cho: findOne({ token: hash, status: true, type: 'refresh' })
+// Lưu ý: token đã có unique index riêng, compound này hỗ trợ covered query
+TokenSchema.index({ token: 1, status: 1, type: 1 });

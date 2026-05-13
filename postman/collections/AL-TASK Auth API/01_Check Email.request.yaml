@@ -1,8 +1,8 @@
 $kind: http-request
 name: Check Email
 method: GET
-url: '{{baseUrl}}/auth/check-email?email={{testEmail}}'
-order: 1000
+url: '{{baseUrl}}auth/check-email?email={{testEmail}}'
+order: 2000
 scripts:
   - type: afterResponse
     language: text/javascript

@@ -1,7 +1,7 @@
 $kind: http-request
 name: Login
 method: POST
-url: '{{baseUrl}}/auth/login'
+url: '{{baseUrl}}auth/login'
 order: 3000
 headers:
   - key: Content-Type

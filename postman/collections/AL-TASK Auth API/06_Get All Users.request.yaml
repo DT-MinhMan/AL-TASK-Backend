@@ -1,8 +1,8 @@
 $kind: http-request
-name: Get Profile
+name: Get All Users
 method: GET
-url: '{{baseUrl}}/auth/me'
-order: 4000
+url: '{{baseUrl}}auth/users'
+order: 15000
 auth:
   type: bearer
   credentials:
@@ -16,7 +16,6 @@ scripts:
         pm.expect(pm.response.code).to.equal(200);
       });
       let data = pm.response.json();
-      pm.test("Profile returned", function () {
-        pm.expect(data).to.have.property('email');
-        pm.expect(data).to.have.property('id');
+      pm.test("Users array returned", function () {
+        pm.expect(Array.isArray(data)).to.be.true;
       });

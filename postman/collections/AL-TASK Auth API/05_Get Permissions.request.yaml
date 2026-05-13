@@ -1,7 +1,7 @@
 $kind: http-request
 name: Get Permissions
 method: GET
-url: '{{baseUrl}}/auth/my-permissions'
+url: '{{baseUrl}}auth/my-permissions'
 order: 5000
 auth:
   type: bearer

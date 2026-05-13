@@ -1,11 +1,10 @@
 $kind: http-request
 name: Register
 method: POST
-url: '{{baseUrl}}/auth/register'
-order: 112
+url: "{{baseUrl}}/auth/register"
+order: 1000
 headers:
-  - key: Content-Type
-    value: application/json
+  Content-Type: application/json
 body:
   type: json
   content: |-
@@ -15,7 +14,6 @@ body:
     }
 scripts:
   - type: afterResponse
-    language: text/javascript
     code: |-
       pm.test("Register successful", function () {
         pm.expect(pm.response.code).to.be.oneOf([200, 201]);
@@ -28,3 +26,4 @@ scripts:
       pm.test("Email saved correctly", function () {
         pm.expect(data.user.email).to.equal(pm.environment.get("testEmail"));
       });
+    language: text/javascript

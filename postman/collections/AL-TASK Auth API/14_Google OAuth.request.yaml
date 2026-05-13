@@ -1,7 +1,7 @@
 $kind: http-request
 name: Google OAuth
 method: GET
-url: '{{baseUrl}}/auth/google'
+url: '{{baseUrl}}auth/google'
 order: 13000
 scripts:
   - type: afterResponse

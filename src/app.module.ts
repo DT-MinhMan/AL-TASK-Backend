@@ -46,31 +46,17 @@ import { VerifyModule } from './modules/verify/verify.module';
       envFilePath: '.env',
     }),
 
-    // Rate limiting — multiple named throttlers for different endpoint classes
+    // Default rate limiting applies to every endpoint unless a route explicitly opts out.
+    // Sensitive auth endpoints override this with tighter method-level @Throttle settings.
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (cfg: ConfigService) => ({
         throttlers: [
           {
-            name: 'login',    // POST /auth/login — brute-force protection
-            ttl:   cfg.get<number>('THROTTLE_LOGIN_TTL_MS')   ?? 60_000,
-            limit: cfg.get<number>('THROTTLE_LOGIN_LIMIT')    ?? 5,
-          },
-          {
-            name: 'refresh',  // POST /auth/refresh — mobile-friendly, lenient
-            ttl:   cfg.get<number>('THROTTLE_REFRESH_TTL_MS') ?? 60_000,
-            limit: cfg.get<number>('THROTTLE_REFRESH_LIMIT')  ?? 30,
-          },
-          {
-            name: 'otp',      // POST /auth/verify-otp — prevent OTP brute-force
-            ttl:   cfg.get<number>('THROTTLE_OTP_TTL_MS')    ?? 60_000,
-            limit: cfg.get<number>('THROTTLE_OTP_LIMIT')      ?? 5,
-          },
-          {
-            name: 'reset',    // POST /auth/request-password-reset — anti-spam
-            ttl:   cfg.get<number>('THROTTLE_RESET_TTL_MS')  ?? 900_000,
-            limit: cfg.get<number>('THROTTLE_RESET_LIMIT')    ?? 3,
+            name: 'default',
+            ttl: cfg.get<number>('THROTTLE_DEFAULT_TTL_MS') ?? 60_000,
+            limit: cfg.get<number>('THROTTLE_DEFAULT_LIMIT') ?? 120,
           },
         ],
       }),

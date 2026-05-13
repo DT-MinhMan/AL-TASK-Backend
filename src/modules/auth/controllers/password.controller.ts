@@ -6,14 +6,14 @@ import {
   Body,
   Req,
 } from '@nestjs/common';
-import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from '../services/auth.service';
 import { RequestPasswordResetDto, ResetPasswordWithTokenDto, ResetPasswordWithOtpDto, VerifyOtpDto } from '../dtos/password-reset.dto';
 import { Request as ExpressRequest } from 'express';
 import { AuditLogService } from '../services/audit-log.service';
 
-// SkipThrottle tại class level — throttle áp trên endpoint cụ thể
-@SkipThrottle()
+// Password recovery endpoints are attack targets, so they use explicit
+// method-level throttles and never skip throttling at controller level.
 @Controller('auth')
 export class PasswordController {
   constructor(
@@ -22,7 +22,7 @@ export class PasswordController {
   ) {}
 
   // 🔑 Password reset — throttle: 3/15min (chống email bombing)
-  @Throttle({ reset: { limit: 3, ttl: 900_000 } })
+  @Throttle({ default: { limit: 3, ttl: 900_000 } })
   @Post('request-password-reset')
   async requestPasswordReset(
     @Body() dto: RequestPasswordResetDto,
@@ -40,7 +40,7 @@ export class PasswordController {
   }
 
   // 🔢 Verify OTP — throttle: 5/min (chống brute-force OTP)
-  @Throttle({ otp: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('verify-otp')
   async verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: ExpressRequest) {
     try {
@@ -64,7 +64,7 @@ export class PasswordController {
   }
 
   // 🔒 Reset password với JWT token
-  @Throttle({ otp: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('reset-password/token')
   async resetPasswordWithToken(
     @Body() dto: ResetPasswordWithTokenDto,
@@ -93,7 +93,7 @@ export class PasswordController {
   }
 
   // 🔒 Reset password với OTP
-  @Throttle({ otp: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('reset-password/otp')
   async resetPasswordWithOtp(
     @Body() dto: ResetPasswordWithOtpDto,

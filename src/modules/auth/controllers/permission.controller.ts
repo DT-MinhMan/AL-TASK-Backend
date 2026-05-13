@@ -8,7 +8,6 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionsService } from '../../permissions/services/permissions.service';
 import { Document } from 'mongoose';
@@ -22,8 +21,6 @@ interface RequestWithUser extends ExpressRequest {
   };
 }
 
-// SkipThrottle tại class level — không cần throttle cho query permissions
-@SkipThrottle()
 @Controller('auth')
 export class PermissionController {
   private readonly logger = new Logger(PermissionController.name);

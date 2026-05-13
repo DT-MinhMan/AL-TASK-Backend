@@ -12,7 +12,6 @@ import {
   Request,
   Logger,
 } from '@nestjs/common';
-import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { UsersService } from '../../users/services/users.service';
 import { UpdateProfileDto } from '../dtos/auth.dto';
@@ -31,8 +30,6 @@ interface AuthError extends Error {
   message: string;
 }
 
-// SkipThrottle tại class level — không cần throttle riêng cho user management
-@SkipThrottle()
 @Controller('auth')
 export class UserManagementController {
   private readonly logger = new Logger(UserManagementController.name);

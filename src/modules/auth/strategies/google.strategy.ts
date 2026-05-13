@@ -18,8 +18,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
 
   async validate(
     req: Request,
-    accessToken: string,
-    refreshToken: string,
+    _accessToken: string,
+    _refreshToken: string,
     profile: any,
     done: VerifyCallback,
   ): Promise<any> {
@@ -35,7 +35,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         fullName: `${name?.givenName || ''} ${name?.familyName || ''}`.trim(),
         id: profile.id,
         photos: photos || [],
-        accessToken
       };
 
       done(null, user);

@@ -153,13 +153,13 @@ export class AuthService implements OnModuleInit {
         user.avatar,
       );
 
-      // ✅ Return cả 2 tokens (controller sẽ set vào cookies)
+      // Tokens are only for the controller to set HttpOnly cookies; never expose them in JSON.
       return {
         success: true,
         message: 'Đăng nhập thành công',
-        accessToken,
-        refreshToken,
+        tokens: { accessToken, refreshToken },
         user: {
+          id: user._id.toString(),
           email: user.email,
           role: user.role,
           fullName: user.fullName,

@@ -16,7 +16,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from '../services/auth.service';
 import { UsersService } from '../../users/services/users.service';
 import { RegisterDto, LoginDto } from '../dtos/auth.dto';
@@ -43,8 +43,8 @@ interface AuthError extends Error {
   message: string;
 }
 
-// SkipThrottle tại class level — chỉ áp throttle trên endpoint cụ thể
-@SkipThrottle()
+// Never put @SkipThrottle() at controller level; it can hide a global auth bypass.
+// Keep public auth routes explicitly throttled at method level.
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
@@ -67,7 +67,7 @@ export class AuthController {
   }
 
   // 📥 Đăng ký người dùng — throttle: 10/min để chống spam account
-  @Throttle({ login: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('register')
   async register(@Body() registerDto: RegisterDto, @Req() req: ExpressRequest) {
     this.logger.log('📥 Bắt đầu đăng ký người dùng...');
@@ -97,7 +97,7 @@ export class AuthController {
   }
 
   // 🔐 Đăng nhập — throttle: 5/min per IP (brute-force protection)
-  @Throttle({ login: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('login')
   async login(
@@ -111,7 +111,7 @@ export class AuthController {
       const result = await this.authService.login(loginDto);
 
       // ✅ Set cả 2 tokens vào HttpOnly Cookie
-      setAuthCookies(res, this.configService, { accessToken: result.accessToken, refreshToken: result.refreshToken });
+      setAuthCookies(res, this.configService, result.tokens);
 
       this.auditLogService.log({
         type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
@@ -122,7 +122,11 @@ export class AuthController {
         metadata: { role: result.user.role },
       });
 
-      return result;
+      return {
+        success: result.success,
+        message: result.message,
+        user: result.user,
+      };
     } catch (error) {
       const err = error as AuthError;
       this.auditLogService.log({
@@ -175,7 +179,7 @@ export class AuthController {
   }
 
   // 🔄 Refresh — throttle: 30/min (mobile-friendly, không block concurrent retry)
-  @Throttle({ refresh: { limit: 30, ttl: 60_000 } })
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
   async refreshToken(

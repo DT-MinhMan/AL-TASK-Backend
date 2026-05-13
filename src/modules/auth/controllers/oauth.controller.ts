@@ -26,8 +26,6 @@ interface RequestWithUser extends ExpressRequest {
   };
 }
 
-// SkipThrottle tại class level — throttle áp trên endpoint cụ thể nếu cần
-@SkipThrottle()
 @Controller('auth')
 export class OAuthController {
   private readonly logger = new Logger(OAuthController.name);
@@ -39,14 +37,18 @@ export class OAuthController {
   ) {}
 
   // 👉 Chuyển hướng đến Google để xác thực
+  // OAuth handoff is not credential-bearing; skip only this route explicitly.
   @Get('google')
+  @SkipThrottle()
   @UseGuards(GoogleAuthGuard)
   googleAuth() {
     return;
   }
 
   // 🔄 Google OAuth callback — cấp access + refresh token (đồng nhất với login thường)
+  // Provider callbacks can burst during retries, so this skip is explicit and local.
   @Get('google/redirect')
+  @SkipThrottle()
   @UseGuards(GoogleAuthGuard)
   async googleAuthRedirect(@Req() req: RequestWithUser, @Res() res: Response) {
     try {

@@ -1,14 +1,27 @@
 // src/modules/auth/token.module.ts
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { TokenService } from './services/token.service';
-import { Token, TokenSchema } from './schemas/token.schema';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
+import { TokenService } from './services/token.service';
+import { AuditLogService } from './services/audit-log.service';
+
+import { Token, TokenSchema } from './schemas/token.schema';
+import { SecurityEvent, SecurityEventSchema } from './schemas/security-event.schema';
+
+import { UsersModule } from '../users/users.module';
+
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Token.name, schema: TokenSchema }]), // Đăng ký Mongoose model cho Token
+    // Needed for TokenService(TokenModel)
+    MongooseModule.forFeature([
+      { name: Token.name, schema: TokenSchema },
+      // Needed for AuditLogService(SecurityEventModel)
+      { name: SecurityEvent.name, schema: SecurityEventSchema },
+    ]),
+
+    // Needed for TokenService(JwtService)
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -19,12 +32,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         },
       }),
     }),
+
+    // Needed for TokenService(ConfigService)
     ConfigModule,
+
+    // Needed for TokenService(UsersService)
+    forwardRef(() => UsersModule),
   ],
-  providers: [TokenService],
-  exports: [
-    TokenService,
-    MongooseModule, // 🛠️ Export MongooseModule để sử dụng TokenModel trong AuthModule
-  ],
+  providers: [TokenService, AuditLogService],
+  exports: [TokenService, MongooseModule],
 })
 export class TokenModule {}

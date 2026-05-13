@@ -4,26 +4,13 @@ import { Document } from 'mongoose';
 
 export type SecurityEventDocument = SecurityEvent & Document;
 
-export type SecurityEventType =
-  | 'LOGIN_SUCCESS'
-  | 'LOGIN_FAILED'
-  | 'LOGOUT'
-  | 'REGISTER_SUCCESS'
-  | 'REGISTER_FAILED'
-  | 'REFRESH_SUCCESS'
-  | 'REFRESH_REUSED'
-  | 'TOKEN_FAMILY_REVOKED'
-  | 'GOOGLE_LOGIN_SUCCESS'
-  | 'GOOGLE_LOGIN_FAILED'
-  | 'PASSWORD_RESET_REQUESTED'
-  | 'PASSWORD_RESET_COMPLETED'
-  | 'PASSWORD_RESET_FAILED'
-  | 'OTP_VERIFIED'
-  | 'OTP_FAILED'
-  | 'RATE_LIMIT_HIT'
-  | 'UNAUTHORIZED_ACCESS';
+import type {
+  SecurityEventSeverityLiteral,
+  SecurityEventTypeLiteral,
+} from '../constants/audit.constants';
 
-export type SecurityEventSeverity = 'INFO' | 'WARN' | 'CRITICAL';
+export type SecurityEventType = SecurityEventTypeLiteral;
+export type SecurityEventSeverity = SecurityEventSeverityLiteral;
 
 @Schema({ timestamps: true, collection: 'security_events' })
 export class SecurityEvent {

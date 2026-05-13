@@ -69,7 +69,8 @@ export class VerifyService {
     await this.mailerService.sendMail({
       to: email,
       subject: 'Xác thực email - Mã xác minh',
-      template: './modules/verify/templates/verification',
+      // MailerModule.template.dir already points to src/modules/verify/templates
+      template: './verification',
       context: { code },
     });
   }
@@ -95,7 +96,8 @@ export class VerifyService {
     await this.mailerService.sendMail({
       to: email,
       subject: 'Đặt lại mật khẩu - OTP',
-      template: './modules/verify/templates/password-reset',
+      // MailerModule.template.dir already points to src/modules/verify/templates
+      template: './password-reset',
       context: { otp, resetLink },
     });
   }

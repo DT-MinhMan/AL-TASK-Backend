@@ -139,7 +139,8 @@ import { VerifyModule } from './modules/verify/verify.module';
         from: `"AL-TASK" <${process.env.MAIL_USER}>`,
       },
       template: {
-        dir: join(__dirname, '..', 'src', 'modules', 'verify', 'templates'),
+        // Use workspace absolute path so templates resolve in both ts-node(dev) + dist(prod)
+        dir: join(process.cwd(), 'src', 'modules', 'verify', 'templates'),
         adapter: new HandlebarsAdapter(),
         options: {
           strict: true,

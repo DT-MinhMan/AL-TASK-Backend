@@ -13,9 +13,10 @@ export class RegisterDto {
   email!: string;
 
   @IsNotEmpty({ message: 'Mật khẩu không được để trống.' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\W]{8,}$/, {
+  @Matches(  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/,
+ {
     message:
-      'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và số',
+      'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và kí tự đặc biệt!',
   })
   password!: string;
 }

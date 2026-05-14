@@ -38,12 +38,14 @@ import { UtilitiesModule } from './modules/utilities/utilities.module';
 import { AddressesModule } from './modules/addresses/addresses.module';
 import { ImagesModule } from './modules/images/images.module';
 import { VerifyModule } from './modules/verify/verify.module';
+import { validateEnv } from './config/env.validation';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validate: validateEnv,
     }),
 
     // Default rate limiting applies to every endpoint unless a route explicitly opts out.

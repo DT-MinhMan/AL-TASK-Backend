@@ -84,7 +84,7 @@ export class PasswordResetService {
         throw new BadRequestException('Token không hợp lệ');
       }
 
-      const tokenRecord = await this.tokenService.findActivePasswordResetToken(dto.token);
+      const tokenRecord = await this.tokenService.consumePasswordResetToken(dto.token);
 
       if (!tokenRecord) {
         throw new BadRequestException('Token không hợp lệ hoặc đã được sử dụng');
@@ -93,7 +93,6 @@ export class PasswordResetService {
       const hashedPassword = await this.passwordService.hashPassword(dto.newPassword);
       await this.usersService.updatePassword(tokenRecord.email, hashedPassword);
 
-      await this.tokenService.revokePasswordResetToken(dto.token);
 
       return { success: true, message: 'Đặt lại mật khẩu thành công' };
     } catch (error) {

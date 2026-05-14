@@ -15,6 +15,7 @@ import { UsersService } from '../../users/services/users.service';
 import { AuditLogService } from './audit-log.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
 import { SECURITY_EVENT_TYPES } from '../constants/audit.constants';
+import { AUTH_CONSTANTS } from '../constants/auth.constants';
 
 @Injectable()
 export class TokenService {
@@ -170,6 +171,7 @@ export class TokenService {
       deviceInfo: 'Password Reset',
       status: true,
       type: TOKEN_TYPES.PASSWORD_RESET,
+      expiresAt: new Date(Date.now() + AUTH_CONSTANTS.PASSWORD_RESET_EXPIRES_MS),
     });
   }
 
@@ -179,6 +181,19 @@ export class TokenService {
       status: true,
       type: TOKEN_TYPES.PASSWORD_RESET,
     });
+  }
+
+  async consumePasswordResetToken(resetToken: string): Promise<TokenDocument | null> {
+    return this.tokenModel.findOneAndUpdate(
+      {
+        token: this.hashToken(resetToken),
+        status: true,
+        type: TOKEN_TYPES.PASSWORD_RESET,
+        expiresAt: { $gt: new Date() },
+      },
+      { $set: { status: false } },
+      { new: false },
+    );
   }
 
   async revokePasswordResetToken(resetToken: string): Promise<void> {

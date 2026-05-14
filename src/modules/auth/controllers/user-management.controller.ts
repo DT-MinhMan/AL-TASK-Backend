@@ -18,7 +18,7 @@ import { UsersService } from '../../users/services/users.service';
 import { UpdateProfileDto } from '../dtos/auth.dto';
 import { Request as ExpressRequest } from 'express';
 import { Roles } from '../../../common/decorators/roles.decorator';
-import { USER_ROLES } from '../../../common/constants/user-roles.constants';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 
 interface RequestWithUser extends ExpressRequest {
@@ -45,9 +45,9 @@ export class UserManagementController {
   // 📋 Lấy danh sách tất cả người dùng
   @Get('users')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(USER_ROLES.ADMIN)
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Admin only: list sanitized users' })
+  @ApiOperation({ summary: 'Super admin only: list sanitized users' })
   async getAllUsers() {
     try {
       const users = await this.userService.getAllUsers();

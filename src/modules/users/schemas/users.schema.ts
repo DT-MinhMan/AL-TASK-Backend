@@ -1,6 +1,7 @@
 // 📁 src/modules/users/schemas/user.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 export type UserDocument = User & Document;
 
@@ -15,8 +16,8 @@ export class User {
   @Prop()
   googleId?: string; // 👈 Thêm Google ID (tùy chọn)
 
-  @Prop({ default: 'user' })
-  role!: string; // Các role: 'user', 'admin', 'staff', 'manager', 'technical'
+  @Prop({ type: String, enum: Object.values(GLOBAL_ROLES), default: GLOBAL_ROLES.USER })
+  role!: string;
 
   @Prop({ type: Types.ObjectId, ref: 'Role' })
   roleId?: Types.ObjectId; // 👈 ID của vai trò tùy chỉnh

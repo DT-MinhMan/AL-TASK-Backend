@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Space, SpaceDocument } from '../schemas/space.schema';
 import { CreateSpaceDto, UpdateSpaceDto } from '../dtos/create-space.dto';
+import { SPACE_ROLES, SpaceRole } from '../../../common/constants/space-role.constants';
 
 @Injectable()
 export class SpacesService {
@@ -97,7 +98,7 @@ export class SpacesService {
     this.logger.log(`Space deleted: ${id}`);
   }
 
-  async addMember(spaceId: string, userId: string, role: string = 'member'): Promise<SpaceDocument> {
+  async addMember(spaceId: string, userId: string, role: SpaceRole = SPACE_ROLES.MEMBER): Promise<SpaceDocument> {
     if (!Types.ObjectId.isValid(spaceId) || !Types.ObjectId.isValid(userId)) {
       throw new BadRequestException('Invalid ID format');
     }
@@ -174,7 +175,7 @@ export class SpacesService {
     return space.members.some(
       (m) =>
         m.userId.toString() === targetUserId.toString() &&
-        m.role === 'admin'
+        m.role === SPACE_ROLES.SPACE_ADMIN
     );
   }
 

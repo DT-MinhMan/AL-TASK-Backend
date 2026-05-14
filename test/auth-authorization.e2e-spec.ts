@@ -6,7 +6,8 @@ import * as cookieParser from 'cookie-parser';
 import request = require('supertest');
 import { App } from 'supertest/types';
 
-import { USER_ROLES } from '../src/common/constants/user-roles.constants';
+import { GLOBAL_ROLES } from '../src/common/constants/global-role.constants';
+import { SPACE_ROLES } from '../src/common/constants/space-role.constants';
 import { UserManagementController } from '../src/modules/auth/controllers/user-management.controller';
 import { JwtAuthGuard } from '../src/modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/modules/auth/guards/roles.guard';
@@ -20,19 +21,19 @@ describe('Auth user-management authorization (e2e)', () => {
     'user-token': {
       userId: 'user-1',
       email: 'user@example.com',
-      role: USER_ROLES.USER,
+      role: GLOBAL_ROLES.USER,
       type: 'access',
     },
-    'admin-token': {
-      userId: 'admin-1',
-      email: 'admin@example.com',
-      role: USER_ROLES.ADMIN,
+    'super-admin-token': {
+      userId: 'super-admin-1',
+      email: 'super-admin@example.com',
+      role: GLOBAL_ROLES.SUPER_ADMIN,
       type: 'access',
     },
     'invalid-role-token': {
       userId: 'manager-1',
       email: 'manager@example.com',
-      role: USER_ROLES.MANAGER,
+      role: SPACE_ROLES.SPACE_ADMIN,
       type: 'access',
     },
   } as const;
@@ -72,7 +73,7 @@ describe('Auth user-management authorization (e2e)', () => {
               {
                 _id: { toString: () => 'user-1' },
                 email: 'user@example.com',
-                role: USER_ROLES.USER,
+                role: GLOBAL_ROLES.USER,
                 status: 'active',
                 fullName: 'Regular User',
                 avatar: 'avatar.png',
@@ -115,24 +116,24 @@ describe('Auth user-management authorization (e2e)', () => {
       .expect(403);
   });
 
-  it('rejects authenticated users without the admin role with 403', async () => {
+  it('rejects authenticated users without the super admin role with 403', async () => {
     await request(app.getHttpServer())
       .get('/auth/users')
       .set('Cookie', 'access_token=invalid-role-token')
       .expect(403);
   });
 
-  it('allows admins and sanitizes user list responses', async () => {
+  it('allows super admins and sanitizes user list responses', async () => {
     const response = await request(app.getHttpServer())
       .get('/auth/users')
-      .set('Cookie', 'access_token=admin-token')
+      .set('Cookie', 'access_token=super-admin-token')
       .expect(200);
 
     expect(response.body).toHaveLength(1);
     expect(response.body[0]).toMatchObject({
       id: 'user-1',
       email: 'user@example.com',
-      role: USER_ROLES.USER,
+      role: GLOBAL_ROLES.USER,
       status: 'active',
       fullName: 'Regular User',
       avatar: 'avatar.png',

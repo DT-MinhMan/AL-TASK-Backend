@@ -14,6 +14,7 @@ import { Model } from 'mongoose';
 import { Auth } from '../../auth/schemas/auth.schema';
 import { RoleService } from '../../manager-permissions/services/role.service';
 import { getModelToken } from '@nestjs/mongoose';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 interface JwtPayload {
   userId: string;
@@ -52,9 +53,8 @@ export class PermissionGuard implements CanActivate {
       return false;
     }
 
-    // Check if user has admin role
-    if (request.user?.role === 'admin') {
-      this.logger.debug('[PermissionGuard] User has admin role, access granted');
+    if (request.user?.role === GLOBAL_ROLES.SUPER_ADMIN) {
+      this.logger.debug('[PermissionGuard] User has super_admin role, access granted');
       return true;
     }
 

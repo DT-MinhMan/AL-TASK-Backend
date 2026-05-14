@@ -16,6 +16,7 @@ import { WorkspacesService } from '../services/workspaces.service';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { SpaceRole } from '../../../common/constants/space-role.constants';
 
 @ApiTags('Workspaces')
 @ApiBearerAuth()
@@ -48,7 +49,7 @@ export class WorkspacesController {
   }
 
   @Put(':id')
-  @ApiOperation({ summary: 'Update workspace (owner/admin only)' })
+  @ApiOperation({ summary: 'Update workspace (owner/space admin only)' })
   async update(
     @Request() req: any,
     @Param('id') id: string,
@@ -56,7 +57,7 @@ export class WorkspacesController {
   ) {
     const isAdmin = await this.workspacesService.isAdmin(id, req.user.userId);
     if (!isAdmin) {
-      throw new ForbiddenException('Only owner or admin can update workspace');
+      throw new ForbiddenException('Only owner or space admin can update workspace');
     }
     return this.workspacesService.update(id, dto);
   }
@@ -80,37 +81,37 @@ export class WorkspacesController {
 
   @Post(':id/members')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Add member to workspace (admin/owner only)' })
+  @ApiOperation({ summary: 'Add member to workspace (owner/space admin only)' })
   async addMember(
     @Request() req: any,
     @Param('id') id: string,
-    @Body() body: { userId: string; role: 'admin' | 'member' | 'viewer' },
+    @Body() body: { userId: string; role: SpaceRole },
   ) {
     const isAdmin = await this.workspacesService.isAdmin(id, req.user.userId);
     if (!isAdmin) {
-      throw new ForbiddenException('Only owner or admin can add members');
+      throw new ForbiddenException('Only owner or space admin can add members');
     }
     return this.workspacesService.addMember(id, body.userId, body.role);
   }
 
   @Put(':id/members/:userId')
-  @ApiOperation({ summary: 'Update member role (admin/owner only)' })
+  @ApiOperation({ summary: 'Update member role (owner/space admin only)' })
   async updateMemberRole(
     @Request() req: any,
     @Param('id') id: string,
     @Param('userId') userId: string,
-    @Body() body: { role: 'admin' | 'member' | 'viewer' },
+    @Body() body: { role: SpaceRole },
   ) {
     const isAdmin = await this.workspacesService.isAdmin(id, req.user.userId);
     if (!isAdmin) {
-      throw new ForbiddenException('Only owner or admin can update member roles');
+      throw new ForbiddenException('Only owner or space admin can update member roles');
     }
     return this.workspacesService.updateMemberRole(id, userId, body.role);
   }
 
   @Delete(':id/members/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Remove member from workspace (admin/owner only)' })
+  @ApiOperation({ summary: 'Remove member from workspace (owner/space admin only)' })
   async removeMember(
     @Request() req: any,
     @Param('id') id: string,
@@ -118,7 +119,7 @@ export class WorkspacesController {
   ) {
     const isAdmin = await this.workspacesService.isAdmin(id, req.user.userId);
     if (!isAdmin) {
-      throw new ForbiddenException('Only owner or admin can remove members');
+      throw new ForbiddenException('Only owner or space admin can remove members');
     }
     await this.workspacesService.removeMember(id, userId);
   }

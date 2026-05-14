@@ -4,6 +4,7 @@ import { Document, Types } from 'mongoose';
 export type TokenDocument = Token & Document;
 
 import type { TokenTypeLiteral } from '../constants/token.constants';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 export type TokenType = TokenTypeLiteral;
 
@@ -15,7 +16,7 @@ export class Token {
   @Prop({ required: true })
   email!: string;
 
-  @Prop({ default: 'user' })
+  @Prop({ default: GLOBAL_ROLES.USER })
   role!: string;
 
   @Prop({ required: true, unique: true })

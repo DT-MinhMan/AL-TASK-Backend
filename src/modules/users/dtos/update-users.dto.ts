@@ -1,5 +1,6 @@
 import { IsString, IsEmail, IsOptional, IsEnum, IsUrl, Matches, IsMongoId } from 'class-validator';
 import { Types } from 'mongoose';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 // 📄 DTO cho cập nhật thông tin người dùng
 export class UpdateUsersDto {
@@ -24,7 +25,7 @@ export class UpdateUsersDto {
 
   @IsOptional()
   @IsString()
-  @IsEnum(['user', 'admin', 'staff', 'manager', 'technical'], {
+  @IsEnum(Object.values(GLOBAL_ROLES), {
     message: 'Role không hợp lệ',
   })
   role?: string;

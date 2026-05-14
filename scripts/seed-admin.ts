@@ -2,6 +2,7 @@ import 'dotenv/config';
 import * as bcrypt from 'bcrypt';
 import mongoose from 'mongoose';
 import { User, UserSchema } from '../src/modules/users/schemas/users.schema';
+import { GLOBAL_ROLES } from '../src/common/constants/global-role.constants';
 
 async function seedAdmin() {
   const dbUri = process.env.DB_CONNECTION_STRING;
@@ -33,7 +34,7 @@ async function seedAdmin() {
         email,
         password: hashedPassword,
         fullName,
-        role: 'admin',
+        role: GLOBAL_ROLES.SUPER_ADMIN,
         status: 'active',
       },
     },

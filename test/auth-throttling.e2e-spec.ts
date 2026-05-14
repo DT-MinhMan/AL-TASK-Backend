@@ -14,6 +14,7 @@ import { AuditLogService } from '../src/modules/auth/services/audit-log.service'
 import { PasswordResetService } from '../src/modules/auth/services/password-reset.service';
 import { TokenService } from '../src/modules/auth/services/token.service';
 import { UsersService } from '../src/modules/users/services/users.service';
+import { GLOBAL_ROLES } from '../src/common/constants/global-role.constants';
 
 describe('Auth throttling (e2e)', () => {
   let app: INestApplication<App>;
@@ -23,7 +24,7 @@ describe('Auth throttling (e2e)', () => {
       success: true,
       message: 'ok',
       tokens: { accessToken: 'access-token', refreshToken: 'refresh-token' },
-      user: { id: 'user-1', email: 'test@example.com', role: 'user' },
+      user: { id: 'user-1', email: 'test@example.com', role: GLOBAL_ROLES.USER },
     }),
   };
 
@@ -109,7 +110,7 @@ describe('Auth throttling (e2e)', () => {
     expect(response.body.user).toEqual({
       id: 'user-1',
       email: 'test@example.com',
-      role: 'user',
+      role: GLOBAL_ROLES.USER,
     });
   });
 

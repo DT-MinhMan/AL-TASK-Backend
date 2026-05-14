@@ -10,6 +10,7 @@ import { Types } from 'mongoose';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { WorkflowsService } from '../../workflows/services/workflows.service';
+import { SPACE_ROLES, SpaceRole } from '../../../common/constants/space-role.constants';
 
 @Injectable()
 export class WorkspacesService {
@@ -38,7 +39,7 @@ export class WorkspacesService {
       ownerId: new Types.ObjectId(userId),
       leadId: new Types.ObjectId(userId),
       members: [
-        { userId: new Types.ObjectId(userId), role: 'owner' },
+        { userId: new Types.ObjectId(userId), role: SPACE_ROLES.SPACE_ADMIN },
       ],
       settings: {},
       status: 'active',
@@ -125,7 +126,7 @@ export class WorkspacesService {
   async addMember(
     workspaceId: string,
     userId: string,
-    role: 'admin' | 'member' | 'viewer',
+    role: SpaceRole,
   ): Promise<any> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
@@ -161,7 +162,7 @@ export class WorkspacesService {
       throw new NotFoundException(`User "${userId}" is not a member`);
     }
 
-    if (member.role === 'owner') {
+    if (workspace.ownerId.toString() === userId) {
       throw new ForbiddenException('Cannot remove the owner from workspace');
     }
 
@@ -173,7 +174,7 @@ export class WorkspacesService {
   async updateMemberRole(
     workspaceId: string,
     userId: string,
-    role: 'admin' | 'member' | 'viewer',
+    role: SpaceRole,
   ): Promise<any> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
@@ -187,7 +188,7 @@ export class WorkspacesService {
       throw new NotFoundException(`User "${userId}" is not a member`);
     }
 
-    if (member.role === 'owner') {
+    if (workspace.ownerId.toString() === userId) {
       throw new ForbiddenException('Cannot change the owner role');
     }
 
@@ -216,7 +217,7 @@ export class WorkspacesService {
     const member = workspace.members.find(
       (m) => m.userId.toString() === userId,
     );
-    return member?.role === 'owner' || member?.role === 'admin';
+    return workspace.ownerId.toString() === userId || member?.role === SPACE_ROLES.SPACE_ADMIN;
   }
 
   async isOwner(workspaceId: string, userId: string): Promise<boolean> {

@@ -8,6 +8,7 @@ import { UsersService } from '../../users/services/users.service';
 import { AssignRoleDto } from '../dtos/assign-role.dto';
 import { RoleService } from '../services/role.service';
 import { Types } from 'mongoose';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 @Controller('user-roles')
 export class UserRoleController {
@@ -18,7 +19,7 @@ export class UserRoleController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('manager-permissions', 'update')
   async assignRoleToUser(@Body() assignRoleDto: AssignRoleDto) {
     const { userId, roleId } = assignRoleDto;
@@ -49,7 +50,7 @@ export class UserRoleController {
 
   @Delete(':userId/role')
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('manager-permissions', 'delete')
   async removeRoleFromUser(@Param('userId') userId: string) {
     await this.usersService.updateUser(userId, {
@@ -70,7 +71,7 @@ export class UserRoleController {
 
   @Get(':userId/role')
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('manager-permissions', 'read')
   async getUserRole(@Param('userId') userId: string) {
     const user = await this.usersService.getUserById(userId);

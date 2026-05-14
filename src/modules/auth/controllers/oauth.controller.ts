@@ -17,6 +17,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuditLogService } from '../services/audit-log.service';
 import { setAuthCookies } from '../utils/cookie.utils';
 import { SECURITY_EVENT_TYPES } from '../constants/audit.constants';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 interface RequestWithUser extends ExpressRequest {
   user: {
@@ -77,7 +78,7 @@ export class OAuthController {
 
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
       const dashboardUrl = this.configService.get<string>('FRONTEND_DASHBOARD_URL') || `${frontendUrl}/dashboard`;
-      const redirectUrl = user.role === 'admin' ? dashboardUrl : `${frontendUrl}/`;
+      const redirectUrl = user.role === GLOBAL_ROLES.SUPER_ADMIN ? dashboardUrl : `${frontendUrl}/`;
 
       return res.redirect(redirectUrl);
     } catch (error) {

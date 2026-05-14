@@ -10,6 +10,7 @@ import { PermissionGuard } from '../guards/permission.guard';
 import { RequirePermission } from '../../../common/decorators/permission.decorator';
 import { UserPermissionDocument } from '../schemas/user-permission.schema';
 import { Permission } from '../schemas/permission.schema';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 @Controller('permissionsapi')
 export class PermissionsController {
@@ -17,7 +18,7 @@ export class PermissionsController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('permissions', 'read')
   async findAll() {
     const permissions = await this.permissionsService.findAll();
@@ -33,7 +34,7 @@ export class PermissionsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('permissions', 'create')
   async create(@Body() createPermissionDto: CreatePermissionDto) {
     const permission = await this.permissionsService.create(createPermissionDto);
@@ -49,7 +50,7 @@ export class PermissionsController {
 
   @Get('user/:userId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('permissions', 'read')
   async getUserPermissions(@Param('userId') userId: string) {
     const permissions = await this.permissionsService.getUserPermissions(userId);
@@ -66,7 +67,7 @@ export class PermissionsController {
 
   @Put('user/:userId')
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('permissions', 'update')
   async updateUserPermissions(
     @Param('userId') userId: string,
@@ -124,7 +125,7 @@ export class PermissionsController {
 
   @Post('initialize')
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('permissions', 'create')
   async initializeDefaultPermissions() {
     await this.permissionsService.initializeDefaultPermissions();
@@ -134,13 +135,13 @@ export class PermissionsController {
     };
   }
 
-  @Post('admin/:userId')
+  @Post('super-admin/:userId')
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('permissions', 'update')
-  async assignAllPermissionsToAdmin(@Param('userId') userId: string) {
+  async assignAllPermissionsToSuperAdmin(@Param('userId') userId: string) {
     try {
-      console.log('Assigning all permissions to admin user:', userId);
+      console.log('Assigning all permissions to super admin user:', userId);
 
       // First, ensure all permissions are initialized
       await this.permissionsService.initializeDefaultPermissions();
@@ -154,7 +155,7 @@ export class PermissionsController {
         permissionIds
       });
     } catch (error) {
-      console.error('Error assigning admin permissions:', error);
+      console.error('Error assigning super admin permissions:', error);
       throw error;
     }
   }

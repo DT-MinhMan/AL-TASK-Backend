@@ -8,6 +8,7 @@ import {
 import { UsersService } from '../../users/services/users.service';
 import { User } from '../../users/schemas/users.schema';
 import { TokenService } from './token.service';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 @Injectable()
 export class OAuthService {
@@ -68,7 +69,7 @@ export class OAuthService {
           email,
           fullName,
           avatar,
-          role: 'user',
+          role: GLOBAL_ROLES.USER,
           status: 'active',
         });
 

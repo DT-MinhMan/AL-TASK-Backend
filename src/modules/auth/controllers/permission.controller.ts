@@ -12,6 +12,7 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionsService } from '../../permissions/services/permissions.service';
 import { Document } from 'mongoose';
 import { Request as ExpressRequest } from 'express';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 interface RequestWithUser extends ExpressRequest {
   user: {
@@ -37,10 +38,10 @@ export class PermissionController {
     const role = req.user?.role;
 
     try {
-      if (role === 'admin') {
+      if (role === GLOBAL_ROLES.SUPER_ADMIN) {
         const allPermissions = await this.permissionsService.findAll();
         return {
-          role: 'admin',
+          role: GLOBAL_ROLES.SUPER_ADMIN,
           permissions: allPermissions.map(p => ({
             id: (p as any as Document).id,
             resource: p.resource,

@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
 
 export type WorkspaceDocument = Workspace & Document;
 
@@ -26,7 +27,7 @@ export class Workspace {
   @Prop({ type: Types.ObjectId, ref: 'User' })
   leadId?: Types.ObjectId;
 
-  @Prop({ type: [{ userId: { type: Types.ObjectId, ref: 'User' }, role: { type: String, enum: ['owner', 'admin', 'member', 'viewer'] } }], default: [] })
+  @Prop({ type: [{ userId: { type: Types.ObjectId, ref: 'User' }, role: { type: String, enum: Object.values(SPACE_ROLES) } }], default: [] })
   members!: { userId: Types.ObjectId; role: string }[];
 
   @Prop({ type: Object, default: {} })

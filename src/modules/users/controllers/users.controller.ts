@@ -7,6 +7,7 @@ import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { PermissionGuard } from '../../permissions/guards/permission.guard';
 import { RequirePermission } from '../../../common/decorators/permission.decorator';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 @Controller('users')
 export class UsersController {
@@ -19,7 +20,7 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin', 'manager')
+  @Roles(GLOBAL_ROLES.USER)
   @RequirePermission('users', 'update')
   @Put('me')
   async updateProfile(@Request() req, @Body() updateUserDto: UpdateUserProfileDto) {
@@ -28,7 +29,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
   @RequirePermission('users', 'update')
-  @Roles('admin', 'manager')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @Get()
   async getAllUsers() {
     return await this.usersService.getAllUsers();
@@ -36,7 +37,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
   @RequirePermission('users', 'read')
-  @Roles('admin', 'manager', 'staff')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @Get(':id')
   async getUserById(@Param('id') id: string) {
     return await this.usersService.getUserById(id);
@@ -44,7 +45,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
   @RequirePermission('users', 'create')
-  @Roles('admin', 'manager')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @Post()
   async createUser(@Body() createUserDto: CreateUsersDto) {
     const existingUser = await this.usersService.findByEmail(createUserDto.email);
@@ -57,7 +58,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
   @RequirePermission('users', 'update')
-  @Roles('admin', 'manager')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @Put(':id')
   async updateUser(@Param('id') id: string, @Body() updateUserDto: UpdateUsersDto) {
     return await this.usersService.updateUser(id, updateUserDto);
@@ -65,7 +66,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
   @RequirePermission('users', 'delete')
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @Delete(':id')
   async deleteUser(@Param('id') id: string) {
     return await this.usersService.deleteUser(id);

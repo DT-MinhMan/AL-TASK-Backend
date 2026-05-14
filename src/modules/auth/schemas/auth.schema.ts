@@ -2,6 +2,7 @@
 
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 /**
  * 🛠️ **Schema cho Bảng Auth trong MongoDB**
@@ -16,13 +17,13 @@ export class Auth extends Document {
 
   /**
    * 🆕 **Role được lưu dưới dạng chuỗi**
-   * Các giá trị hợp lệ: `"user"`, `"admin"`, `"staff"`, `"manager"`, `"technician"`
+   * Các giá trị hợp lệ: `"super_admin"`, `"user"`
    * Role mặc định là `"user"`
    */
   @Prop({
     type: String,
-    enum: ['user', 'admin', 'staff', 'manager', 'technician'],
-    default: 'user',
+    enum: Object.values(GLOBAL_ROLES),
+    default: GLOBAL_ROLES.USER,
   })
   role!: string;
 

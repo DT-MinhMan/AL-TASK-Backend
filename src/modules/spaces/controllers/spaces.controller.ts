@@ -53,7 +53,7 @@ export class SpacesController {
   }
 
   @Put(':id')
-  @ApiOperation({ summary: 'Update space (owner/admin only)' })
+  @ApiOperation({ summary: 'Update space (owner/space admin only)' })
   async update(
     @Param('id') id: string,
     @Body() updateSpaceDto: UpdateSpaceDto,
@@ -61,7 +61,7 @@ export class SpacesController {
   ) {
     const isAdmin = await this.spacesService.isAdmin(id, req.user.userId);
     if (!isAdmin) {
-      throw new ForbiddenException('Only owner or admin can update this space');
+      throw new ForbiddenException('Only owner or space admin can update this space');
     }
     return this.spacesService.update(id, updateSpaceDto);
   }
@@ -84,7 +84,7 @@ export class SpacesController {
   }
 
   @Post(':id/members')
-  @ApiOperation({ summary: 'Add member to space (owner/admin only)' })
+  @ApiOperation({ summary: 'Add member to space (owner/space admin only)' })
   async addMember(
     @Param('id') id: string,
     @Body() addMemberDto: AddMemberDto,
@@ -92,13 +92,13 @@ export class SpacesController {
   ) {
     const isAdmin = await this.spacesService.isAdmin(id, req.user.userId);
     if (!isAdmin) {
-      throw new ForbiddenException('Only owner or admin can add members');
+      throw new ForbiddenException('Only owner or space admin can add members');
     }
     return this.spacesService.addMember(id, addMemberDto.userId, addMemberDto.role);
   }
 
   @Delete(':id/members/:userId')
-  @ApiOperation({ summary: 'Remove member from space (owner/admin only)' })
+  @ApiOperation({ summary: 'Remove member from space (owner/space admin only)' })
   async removeMember(
     @Param('id') id: string,
     @Param('userId') userId: string,
@@ -106,7 +106,7 @@ export class SpacesController {
   ) {
     const isAdmin = await this.spacesService.isAdmin(id, req.user.userId);
     if (!isAdmin) {
-      throw new ForbiddenException('Only owner or admin can remove members');
+      throw new ForbiddenException('Only owner or space admin can remove members');
     }
 
     const space = await this.spacesService.findById(id);

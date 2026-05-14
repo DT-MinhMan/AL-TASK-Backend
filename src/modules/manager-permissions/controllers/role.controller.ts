@@ -7,6 +7,7 @@ import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { PermissionGuard } from '../../permissions/guards/permission.guard';
 import { RequirePermission } from '../../../common/decorators/permission.decorator';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 @Controller('roles')
 export class RoleController {
@@ -14,7 +15,7 @@ export class RoleController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('manager-permissions', 'read')
   async getAllRoles() {
     return await this.roleService.findAll();
@@ -22,7 +23,7 @@ export class RoleController {
 
   @Get('with-permissions')
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('manager-permissions', 'read')
   async getAllRolesWithPermissions() {
     return await this.roleService.getAllRolesWithPermissions();
@@ -30,7 +31,7 @@ export class RoleController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('manager-permissions', 'read')
   async getRoleById(@Param('id') id: string) {
     return await this.roleService.findById(id);
@@ -38,7 +39,7 @@ export class RoleController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('manager-permissions', 'create')
   async createRole(@Body() createRoleDto: CreateRoleDto) {
     return await this.roleService.create(createRoleDto);
@@ -46,7 +47,7 @@ export class RoleController {
 
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('manager-permissions', 'update')
   async updateRole(
     @Param('id') id: string,
@@ -57,7 +58,7 @@ export class RoleController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('manager-permissions', 'delete')
   async deleteRole(@Param('id') id: string) {
     return await this.roleService.delete(id);
@@ -65,7 +66,7 @@ export class RoleController {
 
   @Get(':roleId/permissions')
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('manager-permissions', 'read')
   async getRolePermissions(@Param('roleId') roleId: string) {
     return await this.roleService.getRolePermissions(roleId);
@@ -73,7 +74,7 @@ export class RoleController {
 
   @Put(':roleId/permissions')
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
-  @Roles('admin')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('manager-permissions', 'update')
   async updateRolePermissions(
     @Param('roleId') roleId: string,

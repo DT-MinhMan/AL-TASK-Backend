@@ -1,4 +1,5 @@
 import { IsString, IsEmail, IsOptional, IsEnum, IsUrl, Matches, IsNotEmpty } from 'class-validator';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 // 📄 DTO cho tạo người dùng mới
 export class CreateUsersDto {
@@ -19,10 +20,10 @@ export class CreateUsersDto {
 
   @IsOptional()
   @IsString()
-  @IsEnum(['user', 'admin', 'staff', 'manager', 'technical'], {
+  @IsEnum(Object.values(GLOBAL_ROLES), {
     message: 'Role không hợp lệ',
   })
-  role?: string = 'user';
+  role?: string = GLOBAL_ROLES.USER;
 
   @IsOptional()
   @IsString()

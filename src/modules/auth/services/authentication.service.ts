@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 
-import { USER_ROLES } from '../../../common/constants/user-roles.constants';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { UsersService } from '../../users/services/users.service';
 import { LoginDto, RegisterDto } from '../dtos/auth.dto';
 import { PasswordService } from './password.service';
@@ -36,7 +36,7 @@ export class AuthenticationService {
       await this.usersService.createUser({
         email: registerDto.email,
         password: registerDto.password,
-        role: USER_ROLES.USER,
+        role: GLOBAL_ROLES.USER,
         status: 'active',
       });
 

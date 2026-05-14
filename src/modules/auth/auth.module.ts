@@ -21,6 +21,7 @@ import { Otp, OtpSchema } from './schemas/otp.schema';
 import { Token, TokenSchema } from './schemas/token.schema';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
 import { ManagerPermissionsModule } from '../manager-permissions/manager-permissions.module';
 import { Auth, AuthSchema } from './schemas/auth.schema';
 import { SecurityEvent, SecurityEventSchema } from './schemas/security-event.schema';
@@ -28,6 +29,8 @@ import { AuditLogService } from './services/audit-log.service';
 import { OtpService } from './services/otp.service';
 import { PasswordResetService } from './services/password-reset.service';
 import { OAuthService } from './services/oauth.service';
+import { AuthenticationService } from './services/authentication.service';
+import { PasswordService } from './services/password.service';
 
 @Module({
   imports: [
@@ -64,6 +67,8 @@ import { OAuthService } from './services/oauth.service';
   ],
   providers: [
     AuthService,
+    AuthenticationService,
+    PasswordService,
     TokenService,
     OtpService,
     PasswordResetService,
@@ -71,10 +76,13 @@ import { OAuthService } from './services/oauth.service';
     JwtStrategy,
     GoogleStrategy,
     JwtAuthGuard,
+    RolesGuard,
     AuditLogService,
   ],
   exports: [
     AuthService,
+    AuthenticationService,
+    PasswordService,
     TokenService,
     OtpService,
     PasswordResetService,
@@ -82,6 +90,7 @@ import { OAuthService } from './services/oauth.service';
     JwtStrategy,
     JwtModule,
     JwtAuthGuard,
+    RolesGuard,
     AuditLogService,
   ],
 })

@@ -6,6 +6,7 @@ import {
   IsIn,
   Matches,
 } from 'class-validator';
+import { USER_ROLES } from '../../../common/constants/user-roles.constants';
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Email không hợp lệ.' })
@@ -57,7 +58,7 @@ export class UpdateProfileDto {
 export class UpdateUserDto extends UpdateProfileDto {
   @IsOptional()
   @IsString({ message: 'Role phải là kiểu chuỗi.' })
-  @IsIn(['user', 'admin', 'staff', 'manager', 'technician'], {
+  @IsIn(Object.values(USER_ROLES), {
     message:
       'Role phải là một trong các giá trị: user, admin, staff, manager, technician',
   })

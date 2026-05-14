@@ -1,24 +1,30 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+
+import { UserRole } from '../../../common/constants/user-roles.constants';
 import { ROLES_KEY } from '../../../common/decorators/roles.decorator';
-import { User } from '../../users/schemas/users.schema'; // Thay đổi đường dẫn nếu cần
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>(
-      ROLES_KEY,
-      [context.getHandler(), context.getClass()],
-    );
-    if (!requiredRoles) {
-      return true;
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (!requiredRoles?.length) {
+      throw new ForbiddenException('Role metadata is required for this route');
     }
 
     const request = context.switchToHttp().getRequest();
-    const user: User = request.user;
+    const user = request.user as { role?: string } | undefined;
 
-    return user && requiredRoles.includes(user.role);
+    if (!user?.role || !requiredRoles.includes(user.role as UserRole)) {
+      throw new ForbiddenException('Insufficient role');
+    }
+
+    return true;
   }
 }

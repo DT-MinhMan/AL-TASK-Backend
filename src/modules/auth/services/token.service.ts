@@ -162,6 +162,32 @@ export class TokenService {
     }
   }
 
+  async createPasswordResetTokenRecord(userId: string, email: string, resetToken: string): Promise<void> {
+    await this.tokenModel.create({
+      userId,
+      email,
+      token: this.hashToken(resetToken),
+      deviceInfo: 'Password Reset',
+      status: true,
+      type: TOKEN_TYPES.PASSWORD_RESET,
+    });
+  }
+
+  async findActivePasswordResetToken(resetToken: string): Promise<TokenDocument | null> {
+    return this.tokenModel.findOne({
+      token: this.hashToken(resetToken),
+      status: true,
+      type: TOKEN_TYPES.PASSWORD_RESET,
+    });
+  }
+
+  async revokePasswordResetToken(resetToken: string): Promise<void> {
+    await this.tokenModel.updateOne(
+      { token: this.hashToken(resetToken), type: TOKEN_TYPES.PASSWORD_RESET },
+      { status: false },
+    );
+  }
+
   /**
    * 🔄 Refresh Access Token
    * SEC-8: Atomic consume + token family theft detection

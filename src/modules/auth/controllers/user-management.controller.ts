@@ -13,9 +13,13 @@ import {
   Logger,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { RolesGuard } from '../guards/roles.guard';
 import { UsersService } from '../../users/services/users.service';
 import { UpdateProfileDto } from '../dtos/auth.dto';
 import { Request as ExpressRequest } from 'express';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { USER_ROLES } from '../../../common/constants/user-roles.constants';
+import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 
 interface RequestWithUser extends ExpressRequest {
   user: {
@@ -40,10 +44,23 @@ export class UserManagementController {
 
   // 📋 Lấy danh sách tất cả người dùng
   @Get('users')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(USER_ROLES.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Admin only: list sanitized users' })
   async getAllUsers() {
     try {
-      return await this.userService.getAllUsers();
+      const users = await this.userService.getAllUsers();
+      return users.map((user) => ({
+        id: user._id.toString(),
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        fullName: user.fullName,
+        avatar: user.avatar,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      }));
     } catch (error) {
       const err = error as AuthError;
       this.logger.error(`❌ Lỗi khi lấy danh sách người dùng: ${err.message}`, err.stack);

@@ -4,9 +4,9 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CreateUsersDto } from '../dtos/create-users.dto';
 import { UpdateUserProfileDto, UpdateUsersDto } from '../dtos/update-users.dto';
 import { RolesGuard } from '../../auth/guards/roles.guard';
-import { Roles } from 'src/common/decorators/roles.decorator';
-import { PermissionGuard } from 'src/modules/permissions/guards/permission.guard';
-import { RequirePermission } from 'src/common/decorators/permission.decorator';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { PermissionGuard } from '../../permissions/guards/permission.guard';
+import { RequirePermission } from '../../../common/decorators/permission.decorator';
 
 @Controller('users')
 export class UsersController {

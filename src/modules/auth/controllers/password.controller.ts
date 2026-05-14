@@ -7,7 +7,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { AuthService } from '../services/auth.service';
+import { PasswordResetService } from '../services/password-reset.service';
 import { RequestPasswordResetDto, ResetPasswordWithTokenDto, ResetPasswordWithOtpDto, VerifyOtpDto } from '../dtos/password-reset.dto';
 import { Request as ExpressRequest } from 'express';
 import { AuditLogService } from '../services/audit-log.service';
@@ -17,7 +17,7 @@ import { AuditLogService } from '../services/audit-log.service';
 @Controller('auth')
 export class PasswordController {
   constructor(
-    private readonly authService: AuthService,
+    private readonly passwordResetService: PasswordResetService,
     private readonly auditLogService: AuditLogService,
   ) {}
 
@@ -28,7 +28,7 @@ export class PasswordController {
     @Body() dto: RequestPasswordResetDto,
     @Req() req: ExpressRequest,
   ) {
-    const result = await this.authService.requestPasswordReset(dto);
+    const result = await this.passwordResetService.requestPasswordReset(dto);
     this.auditLogService.log({
       type: 'PASSWORD_RESET_REQUESTED',
       severity: 'INFO',
@@ -44,7 +44,7 @@ export class PasswordController {
   @Post('verify-otp')
   async verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: ExpressRequest) {
     try {
-      const result = await this.authService.verifyOtp(dto);
+      const result = await this.passwordResetService.verifyOtp(dto);
       this.auditLogService.log({
         type: 'OTP_VERIFIED',
         severity: 'INFO',
@@ -71,7 +71,7 @@ export class PasswordController {
     @Req() req: ExpressRequest,
   ) {
     try {
-      const result = await this.authService.resetPasswordWithToken(dto);
+      const result = await this.passwordResetService.resetPasswordWithToken(dto);
       this.auditLogService.log({
         type: 'PASSWORD_RESET_COMPLETED',
         severity: 'INFO',
@@ -100,7 +100,7 @@ export class PasswordController {
     @Req() req: ExpressRequest,
   ) {
     try {
-      const result = await this.authService.resetPasswordWithOtp(dto);
+      const result = await this.passwordResetService.resetPasswordWithOtp(dto);
       this.auditLogService.log({
         type: 'PASSWORD_RESET_COMPLETED',
         severity: 'INFO',

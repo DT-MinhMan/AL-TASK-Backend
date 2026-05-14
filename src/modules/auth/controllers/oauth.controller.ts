@@ -10,7 +10,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
-import { AuthService } from '../services/auth.service';
+import { OAuthService } from '../services/oauth.service';
 import { GoogleAuthGuard } from '../guards/google-auth.guard';
 import { Response, Request as ExpressRequest } from 'express';
 import { ConfigService } from '@nestjs/config';
@@ -31,7 +31,7 @@ export class OAuthController {
   private readonly logger = new Logger(OAuthController.name);
 
   constructor(
-    private readonly authService: AuthService,
+    private readonly oauthService: OAuthService,
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
   ) {}
@@ -57,7 +57,7 @@ export class OAuthController {
       }
 
       // ✅ Phase 3: Nhận đủ access + refresh token (đồng nhất với login thường)
-      const { user, accessToken, refreshToken } = await this.authService.validateGoogleUser(req.user);
+      const { user, accessToken, refreshToken } = await this.oauthService.validateGoogleUser(req.user);
 
       if (!user) {
         throw new BadRequestException('Xác thực Google thất bại');

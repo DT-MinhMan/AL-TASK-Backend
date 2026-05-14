@@ -17,7 +17,8 @@ import {
   Res,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { AuthService } from '../services/auth.service';
+import { AuthenticationService } from '../services/authentication.service';
+import { TokenService } from '../services/token.service';
 import { UsersService } from '../../users/services/users.service';
 import { RegisterDto, LoginDto } from '../dtos/auth.dto';
 import { RefreshTokenDto } from '../dtos/refresh-token.dto';
@@ -50,7 +51,8 @@ export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
   constructor(
-    private readonly authService: AuthService,
+    private readonly authenticationService: AuthenticationService,
+    private readonly tokenService: TokenService,
     private readonly userService: UsersService,
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
@@ -62,7 +64,7 @@ export class AuthController {
     if (!email) {
       throw new BadRequestException('Email không được để trống');
     }
-    const isValid = await this.authService.checkEmail(email);
+    const isValid = await this.authenticationService.checkEmail(email);
     return { isValid };
   }
 
@@ -73,7 +75,7 @@ export class AuthController {
     this.logger.log('📥 Bắt đầu đăng ký người dùng...');
 
     try {
-      const result = await this.authService.register(registerDto);
+      const result = await this.authenticationService.register(registerDto);
       this.auditLogService.log({
         type: SECURITY_EVENT_TYPES.REGISTER_SUCCESS,
         severity: 'INFO',
@@ -108,7 +110,7 @@ export class AuthController {
     this.logger.log('🔐 Đang xử lý đăng nhập...');
 
     try {
-      const result = await this.authService.login(loginDto);
+      const result = await this.authenticationService.login(loginDto);
 
       // ✅ Set cả 2 tokens vào HttpOnly Cookie
       setAuthCookies(res, this.configService, result.tokens);
@@ -158,7 +160,7 @@ export class AuthController {
     const refreshToken = req.cookies?.[COOKIE_NAMES.REFRESH];
 
     try {
-      const result = await this.authService.logout(accessToken, refreshToken);
+      const result = await this.tokenService.revokeSessionTokens(accessToken, refreshToken);
 
       clearAuthCookies(res, this.configService);
 
@@ -194,7 +196,7 @@ export class AuthController {
     }
 
     try {
-      const result = await this.authService.refreshAccessToken(refreshToken);
+      const result = await this.tokenService.refreshAccessToken(refreshToken);
 
       setAuthCookies(res, this.configService, { accessToken: result.accessToken, refreshToken: result.refreshToken });
 

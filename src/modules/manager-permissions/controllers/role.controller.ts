@@ -6,7 +6,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { PermissionGuard } from '../../permissions/guards/permission.guard';
-import { RequirePermission } from 'src/common/decorators/permission.decorator';
+import { RequirePermission } from '../../../common/decorators/permission.decorator';
 
 @Controller('roles')
 export class RoleController {

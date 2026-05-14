@@ -11,7 +11,7 @@ import { Role, RoleSchema } from '../manager-permissions/schemas/role.schema';
 import { RolePermission, RolePermissionSchema } from '../manager-permissions/schemas/role-permission.schema';
 import { Permission, PermissionSchema } from '../permissions/schemas/permission.schema';
 import { RoleService } from '../manager-permissions/services/role.service';
-import { CommonModule } from 'src/common/common.module';
+import { CommonModule } from '../../common/common.module';
 import { Token, TokenSchema } from '../auth/schemas/token.schema';
 import { Otp, OtpSchema } from '../auth/schemas/otp.schema';
 import { Auth, AuthSchema } from '../auth/schemas/auth.schema';

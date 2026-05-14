@@ -72,7 +72,7 @@ export class TokenService {
   }
 
   /**
-   * Access(15m) + Refresh(7d) — extracted from AuthService.createAndSaveTokens (behavior preserved)
+   * Access(15m) + Refresh(7d) token pair issuance (behavior preserved)
    */
   async createAndSaveTokens(
     userId: string,
@@ -141,7 +141,7 @@ export class TokenService {
   }
 
   /**
-   * Revoke current session tokens (access + refresh) by raw token(s) — extracted from AuthService.logout
+   * Revoke current session tokens (access + refresh) by raw token(s)
    */
   async revokeSessionTokens(accessToken?: string, refreshToken?: string): Promise<{ message: string }> {
     if (!accessToken && !refreshToken) {
@@ -191,7 +191,7 @@ export class TokenService {
   /**
    * 🔄 Refresh Access Token
    * SEC-8: Atomic consume + token family theft detection
-   * Extracted from AuthService.refreshAccessToken (behavior preserved)
+   * Refresh token rotation with family reuse detection (behavior preserved)
    */
   async refreshAccessToken(refreshToken: string): Promise<{ success: boolean; accessToken: string; refreshToken: string }> {
     try {

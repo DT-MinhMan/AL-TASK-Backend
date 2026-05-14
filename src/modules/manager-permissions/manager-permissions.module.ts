@@ -6,6 +6,7 @@ import { RoleService } from './services/role.service';
 import { Role, RoleSchema } from './schemas/role.schema';
 import { RolePermission, RolePermissionSchema } from './schemas/role-permission.schema';
 import { AuthModule } from '../auth/auth.module';
+import { UsersModule } from '../users/users.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PermissionsModule } from '../permissions/permissions.module';
@@ -22,6 +23,7 @@ import { User, UserSchema } from '../users/schemas/users.schema';
       { name: User.name, schema: UserSchema },
     ]),
     forwardRef(() => AuthModule),
+    forwardRef(() => UsersModule),
     forwardRef(() => PermissionsModule),
     CommonModule,
     JwtModule.registerAsync({

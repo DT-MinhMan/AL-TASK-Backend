@@ -3,15 +3,16 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { PermissionGuard } from '../../permissions/guards/permission.guard';
-import { RequirePermission } from 'src/common/decorators/permission.decorator';
-import { AuthService } from '../../auth/services/auth.service';
+import { RequirePermission } from '../../../common/decorators/permission.decorator';
+import { UsersService } from '../../users/services/users.service';
 import { AssignRoleDto } from '../dtos/assign-role.dto';
 import { RoleService } from '../services/role.service';
+import { Types } from 'mongoose';
 
 @Controller('user-roles')
 export class UserRoleController {
   constructor(
-    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
     private readonly roleService: RoleService
   ) { }
 
@@ -26,7 +27,10 @@ export class UserRoleController {
     const role = await this.roleService.findById(roleId);
 
     // Assign the role to the user
-    const updatedUser = await this.authService.assignCustomRoleToUser(userId, roleId);
+    await this.usersService.updateUser(userId, {
+      roleId: new Types.ObjectId(roleId),
+    });
+    const updatedUser = await this.usersService.getUserById(userId);
 
     return {
       success: true,
@@ -48,7 +52,10 @@ export class UserRoleController {
   @Roles('admin')
   @RequirePermission('manager-permissions', 'delete')
   async removeRoleFromUser(@Param('userId') userId: string) {
-    const updatedUser = await this.authService.removeCustomRoleFromUser(userId);
+    await this.usersService.updateUser(userId, {
+      $unset: { roleId: '' },
+    });
+    const updatedUser = await this.usersService.getUserById(userId);
 
     return {
       success: true,
@@ -66,7 +73,7 @@ export class UserRoleController {
   @Roles('admin')
   @RequirePermission('manager-permissions', 'read')
   async getUserRole(@Param('userId') userId: string) {
-    const user = await this.authService.findUserById(userId);
+    const user = await this.usersService.getUserById(userId);
 
     if (!user.roleId) {
       return {

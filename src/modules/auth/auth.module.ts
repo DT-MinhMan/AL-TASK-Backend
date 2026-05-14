@@ -5,7 +5,6 @@ import { OAuthController } from './controllers/oauth.controller';
 import { PasswordController } from './controllers/password.controller';
 import { PermissionController } from './controllers/permission.controller';
 import { UserManagementController } from './controllers/user-management.controller';
-import { AuthService } from './services/auth.service';
 import { UsersModule } from '../users/users.module';
 import { TokenService } from './services/token.service';
 import { JwtModule } from '@nestjs/jwt';
@@ -66,7 +65,6 @@ import { PasswordService } from './services/password.service';
     UserManagementController,
   ],
   providers: [
-    AuthService,
     AuthenticationService,
     PasswordService,
     TokenService,
@@ -80,7 +78,6 @@ import { PasswordService } from './services/password.service';
     AuditLogService,
   ],
   exports: [
-    AuthService,
     AuthenticationService,
     PasswordService,
     TokenService,

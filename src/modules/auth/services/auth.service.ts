@@ -83,10 +83,10 @@ export class AuthService implements OnModuleInit {
         throw new ConflictException('Email đã được sử dụng');
       }
 
-      // Tạo user mới mà không mã hóa mật khẩu (giả định mật khẩu đã được mã hóa từ frontend)
+      const hashedPassword = await bcrypt.hash(registerDto.password, 10);
       const newUser = await this.usersService.createUser({
         email: registerDto.email,
-        password: registerDto.password,
+        password: hashedPassword,
         role: 'user',
         // status: 'pending',
         status: 'active',

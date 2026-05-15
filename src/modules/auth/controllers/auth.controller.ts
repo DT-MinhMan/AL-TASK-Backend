@@ -59,13 +59,18 @@ export class AuthController {
   ) {}
 
   // Kiểm tra email trước khi submit
+  // Public email probes must never reveal whether an account exists.
+  // Keep this compatibility endpoint non-disclosing for older clients.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Get('check-email')
   async checkEmail(@Query('email') email: string) {
     if (!email) {
       throw new BadRequestException('Email không được để trống');
     }
-    const isValid = await this.authenticationService.checkEmail(email);
-    return { isValid };
+    return {
+      success: true,
+      message: 'Bạn có thể tiếp tục đăng ký.',
+    };
   }
 
   // 📥 Đăng ký người dùng — throttle: 10/min để chống spam account

@@ -95,6 +95,26 @@ describe('Auth throttling (e2e)', () => {
     return responses;
   }
 
+  async function getUntilLimited(path: string, attempts: number) {
+    const responses: request.Response[] = [];
+    for (let i = 0; i < attempts; i += 1) {
+      responses.push(await request(app.getHttpServer()).get(path));
+    }
+    return responses;
+  }
+
+  it('returns the same non-disclosing email check response', async () => {
+    const existingEmailResponse = await request(app.getHttpServer())
+      .get('/auth/check-email?email=existing@example.com')
+      .expect(200);
+    const unknownEmailResponse = await request(app.getHttpServer())
+      .get('/auth/check-email?email=unknown@example.com')
+      .expect(200);
+
+    expect(existingEmailResponse.body).toEqual(unknownEmailResponse.body);
+    expect(existingEmailResponse.body).not.toHaveProperty('isValid');
+  });
+
   it('sets login cookies without returning raw tokens in the response body', async () => {
     const response = await request(app.getHttpServer())
       .post('/auth/login')
@@ -133,6 +153,15 @@ describe('Auth throttling (e2e)', () => {
     const responses = await postUntilLimited(
       '/auth/login',
       { email: 'test@example.com', password: 'WrongPass1!' },
+      6,
+    );
+
+    expect(responses.some((res) => res.status === 429)).toBe(true);
+  });
+
+  it('limits repeated email availability probes', async () => {
+    const responses = await getUntilLimited(
+      '/auth/check-email?email=test@example.com',
       6,
     );
 

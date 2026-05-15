@@ -64,7 +64,7 @@ describe('Auth throttling (e2e)', () => {
           provide: ConfigService,
           useValue: { get: jest.fn((key: string) => (key === 'NODE_ENV' ? 'test' : undefined)) },
         },
-        { provide: AuditLogService, useValue: { log: jest.fn() } },
+        { provide: AuditLogService, useValue: { log: jest.fn(), logRequest: jest.fn() } },
         { provide: JwtService, useValue: { verify: jest.fn(), sign: jest.fn() } },
         { provide: TokenService, useValue: tokenServiceMock },
       ],

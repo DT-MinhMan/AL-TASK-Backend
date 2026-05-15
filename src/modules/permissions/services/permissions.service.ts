@@ -42,7 +42,7 @@ export class PermissionsService {
     @InjectModel(User.name) private userModel: Model<User>,
   ) { }
 
-  async findAll(): Promise<Permission[]> {
+  async findAll(): Promise<PermissionDocument[]> {
     return this.permissionModel.find().exec();
   }
 

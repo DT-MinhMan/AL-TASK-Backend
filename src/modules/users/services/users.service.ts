@@ -38,7 +38,7 @@ export class UsersService {
   }
 
   // 📢 Cập nhật thông tin người dùng
-  async updateUser(userId: string, updateData: UpdateUsersDto | { $unset: { [key: string]: any } }, isPasswordHashed: boolean = false): Promise<User> {
+  async updateUser(userId: string, updateData: UpdateUsersDto | { $unset: Record<string, unknown> }, isPasswordHashed: boolean = false): Promise<User> {
     // Only hash password if updateData is UpdateUsersDto and has password field
     if ('password' in updateData && !isPasswordHashed) {
       const salt = await bcrypt.genSalt();

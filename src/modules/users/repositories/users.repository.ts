@@ -38,7 +38,7 @@ export class UsersRepository {
 
   async update(
     userId: string,
-    updateData: Partial<User> | { $unset: { [key: string]: any } },
+    updateData: Partial<User> | { $unset: Record<string, unknown> },
   ): Promise<User | null> {
     return await this.userModel
       .findByIdAndUpdate(userId, updateData, { new: true })

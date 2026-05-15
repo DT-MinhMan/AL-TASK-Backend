@@ -76,22 +76,18 @@ export class AuthController {
 
     try {
       const result = await this.authenticationService.register(registerDto);
-      this.auditLogService.log({
+      this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.REGISTER_SUCCESS,
         severity: 'INFO',
         email: registerDto.email,
-        ip: AuditLogService.extractIp(req),
-        userAgent: AuditLogService.extractUserAgent(req),
       });
       return result;
     } catch (error) {
       const err = error as Error;
-      this.auditLogService.log({
+      this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.REGISTER_FAILED,
         severity: 'WARN',
         email: registerDto.email,
-        ip: AuditLogService.extractIp(req),
-        userAgent: AuditLogService.extractUserAgent(req),
         metadata: { reason: err.message },
       });
       throw error;
@@ -115,12 +111,10 @@ export class AuthController {
       // ✅ Set cả 2 tokens vào HttpOnly Cookie
       setAuthCookies(res, this.configService, result.tokens);
 
-      this.auditLogService.log({
+      this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
         severity: 'INFO',
         email: loginDto.email,
-        ip: AuditLogService.extractIp(req),
-        userAgent: AuditLogService.extractUserAgent(req),
         metadata: { role: result.user.role },
       });
 
@@ -131,12 +125,10 @@ export class AuthController {
       };
     } catch (error) {
       const err = error as AuthError;
-      this.auditLogService.log({
+      this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.LOGIN_FAILED,
         severity: 'WARN',
         email: loginDto.email,
-        ip: AuditLogService.extractIp(req),
-        userAgent: AuditLogService.extractUserAgent(req),
         metadata: { reason: err.message },
       });
       throw error;
@@ -154,7 +146,7 @@ export class AuthController {
     const userId = req.user?.userId;
 
     const accessTokenFromCookie = req.cookies?.[COOKIE_NAMES.ACCESS];
-    const authHeader = (req.headers as any)['authorization'] as string | undefined;
+    const authHeader = req.headers.authorization;
     const accessTokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
     const accessToken = accessTokenFromCookie || accessTokenFromHeader;
     const refreshToken = req.cookies?.[COOKIE_NAMES.REFRESH];
@@ -164,12 +156,10 @@ export class AuthController {
 
       clearAuthCookies(res, this.configService);
 
-      this.auditLogService.log({
+      this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.LOGOUT,
         severity: 'INFO',
         userId,
-        ip: AuditLogService.extractIp(req),
-        userAgent: AuditLogService.extractUserAgent(req),
       });
 
       return result;

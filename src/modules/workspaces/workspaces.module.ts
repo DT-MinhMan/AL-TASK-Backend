@@ -6,6 +6,7 @@ import { WorkspacesRepository } from './repositories/workspaces.repository';
 import { Workspace, WorkspaceSchema } from './schemas/workspace.schema';
 import { AuthModule } from '../auth/auth.module';
 import { WorkflowsModule } from '../workflows/workflows.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { WorkflowsModule } from '../workflows/workflows.module';
     ]),
     forwardRef(() => AuthModule),
     forwardRef(() => WorkflowsModule),
+    forwardRef(() => UsersModule),
   ],
   controllers: [WorkspacesController],
   providers: [WorkspacesService, WorkspacesRepository],

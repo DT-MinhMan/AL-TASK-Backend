@@ -4,16 +4,20 @@ import {
   Post,
   Put,
   Delete,
-  Param,
   Body,
+  Param,
   Query,
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PagesService } from '../services/pages.service';
-import { CreatePageDto, UpdatePageDto, FilterPageDto, MovePageDto, UpdateLabelsDto } from '../dtos/create-page.dto';
+import { CreatePageDto } from '../dtos/create-page.dto';
+import { UpdatePageDto } from '../dtos/update-page.dto';
+import { FilterPageDto } from '../dtos/filter-page.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
+import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
 
 @ApiTags('Pages')
 @ApiBearerAuth()
@@ -23,103 +27,115 @@ export class PagesController {
   constructor(private readonly pagesService: PagesService) {}
 
   @Post()
+  @UseGuards(ScopedRoleGuard('space', SPACE_ROLES.MEMBER))
   @ApiOperation({ summary: 'Create a new page' })
-  async create(@Body() dto: CreatePageDto, @Request() req: any) {
-    return this.pagesService.create(dto, req.user.userId);
+  async create(@Body() createPageDto: CreatePageDto, @Request() req: any) {
+    return this.pagesService.create(createPageDto, req.user.userId);
   }
 
   @Get()
-  @ApiOperation({ summary: 'List pages with filters and pagination' })
-  async findAll(@Query() filter: FilterPageDto) {
-    return this.pagesService.findAll(filter);
+  @ApiOperation({ summary: 'Get all pages with filters' })
+  async findAll(@Query() filterDto: FilterPageDto) {
+    return this.pagesService.findAll(filterDto);
   }
 
   @Get(':id')
+  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Get page by ID' })
   async findById(@Param('id') id: string) {
+    await this.pagesService.incrementViewCount(id);
     return this.pagesService.findById(id);
   }
 
   @Get('slug/:slug')
   @ApiOperation({ summary: 'Get page by slug' })
   async findBySlug(@Param('slug') slug: string) {
-    return this.pagesService.findBySlug(slug);
+    const page = await this.pagesService.findBySlug(slug);
+    await this.pagesService.incrementViewCount(page._id.toString());
+    return page;
   }
 
   @Put(':id')
+  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
   @ApiOperation({ summary: 'Update a page' })
   async update(
     @Param('id') id: string,
-    @Body() dto: UpdatePageDto,
+    @Body() updatePageDto: UpdatePageDto,
     @Request() req: any,
   ) {
-    return this.pagesService.update(id, dto, req.user.userId);
+    return this.pagesService.update(id, updatePageDto, req.user.userId);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a page and all its children' })
+  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.SPACE_ADMIN))
+  @ApiOperation({ summary: 'Delete a page' })
   async delete(@Param('id') id: string) {
-    await this.pagesService.delete(id);
-    return { message: 'Page and children deleted successfully' };
+    return this.pagesService.delete(id);
   }
 
-  @Get('space/:spaceId')
-  @ApiOperation({ summary: 'Get all pages in a space' })
-  async findBySpace(@Param('spaceId') spaceId: string) {
-    return this.pagesService.findBySpace(spaceId);
-  }
-
-  @Get('space/:spaceId/root')
-  @ApiOperation({ summary: 'Get root pages (no parent) in a space' })
-  async findRootPages(@Param('spaceId') spaceId: string) {
-    return this.pagesService.findRootPages(spaceId);
-  }
-
-  @Get('parent/:parentId')
-  @ApiOperation({ summary: 'Get child pages of a parent' })
-  async findChildren(@Param('parentId') parentId: string) {
-    return this.pagesService.findChildren(parentId);
-  }
-
-  @Get('author/:authorId')
-  @ApiOperation({ summary: 'Get pages by author' })
-  async findByAuthor(@Param('authorId') authorId: string) {
-    return this.pagesService.findByAuthor(authorId);
-  }
-
-  @Post(':id/move')
-  @ApiOperation({ summary: 'Move page to a new parent' })
+  @Put(':id/move')
+  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @ApiOperation({ summary: 'Move page to a different parent' })
   async moveToParent(
     @Param('id') id: string,
-    @Body() dto: MovePageDto,
+    @Body('parentId') parentId: string | null,
   ) {
-    return this.pagesService.moveToParent(id, dto.parentId || null);
+    return this.pagesService.moveToParent(id, parentId);
   }
 
   @Post(':id/publish')
+  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
   @ApiOperation({ summary: 'Publish a page' })
   async publish(@Param('id') id: string) {
     return this.pagesService.publish(id);
   }
 
   @Post(':id/unpublish')
-  @ApiOperation({ summary: 'Unpublish a page (set to draft)' })
+  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @ApiOperation({ summary: 'Unpublish a page' })
   async unpublish(@Param('id') id: string) {
     return this.pagesService.unpublish(id);
   }
 
-  @Put(':id/labels')
-  @ApiOperation({ summary: 'Update page labels' })
-  async updateLabels(
-    @Param('id') id: string,
-    @Body() dto: UpdateLabelsDto,
-  ) {
-    return this.pagesService.update(id, { labels: dto.labels }, 'system');
+  @Get('space/:spaceId')
+  @UseGuards(ScopedRoleGuard('space', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'Get all pages for a space' })
+  async findBySpace(@Param('spaceId') spaceId: string) {
+    return this.pagesService.findBySpace(spaceId);
   }
 
-  @Post(':id/view')
-  @ApiOperation({ summary: 'Increment page view count' })
-  async incrementViewCount(@Param('id') id: string) {
-    return this.pagesService.incrementViewCount(id);
+  @Get('space/:spaceId/root')
+  @UseGuards(ScopedRoleGuard('space', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'Get root pages for a space' })
+  async findRootPages(@Param('spaceId') spaceId: string) {
+    return this.pagesService.findRootPages(spaceId);
+  }
+
+  @Get(':id/children')
+  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'Get child pages' })
+  async findChildren(@Param('id') id: string) {
+    return this.pagesService.findChildren(id);
+  }
+
+  @Put(':id/labels')
+  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @ApiOperation({ summary: 'Update page labels' })
+  async updateLabels(@Param('id') id: string, @Body('labels') labels: string[]) {
+    const page = await this.pagesService.findById(id);
+    
+    for (const label of labels) {
+      if (!page.labels.includes(label)) {
+        await this.pagesService.addLabel(id, label);
+      }
+    }
+
+    for (const existingLabel of page.labels) {
+      if (!labels.includes(existingLabel)) {
+        await this.pagesService.removeLabel(id, existingLabel);
+      }
+    }
+
+    return this.pagesService.findById(id);
   }
 }

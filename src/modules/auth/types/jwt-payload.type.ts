@@ -12,6 +12,12 @@ export interface PasswordResetJwtPayload extends JwtPayload {
   type: 'password-reset';
 }
 
+export interface PasswordResetGrantJwtPayload extends JwtPayload {
+  email: string;
+  purpose: 'reset-password';
+  type: 'password-reset-grant';
+}
+
 export interface RefreshJwtPayload extends JwtPayload {
   userId: string;
   type: 'refresh';

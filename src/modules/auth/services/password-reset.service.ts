@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -9,6 +10,7 @@ import { UsersService } from '../../users/services/users.service';
 import { VerifyService } from '../../verify/services/verify.service';
 import {
   RequestPasswordResetDto,
+  ResetPasswordWithGrantDto,
   ResetPasswordWithOtpDto,
   ResetPasswordWithTokenDto,
   VerifyOtpDto,
@@ -69,10 +71,33 @@ export class PasswordResetService {
     return GENERIC_RESPONSE;
   }
 
-  /** ✅ Xác thực OTP */
-  async verifyOtp(dto: VerifyOtpDto) {
-    await this.otpService.verifyOtp(dto.email, dto.otp);
-    return { success: true, message: 'Xác thực OTP thành công' };
+  /** Verify OTP, consume it immediately, then issue a one-time reset grant. */
+  async verifyOtpAndIssueGrant(dto: VerifyOtpDto): Promise<{
+    success: boolean;
+    resetGrant: string;
+    expiresIn: number;
+    message: string;
+  }> {
+    await this.otpService.consumeVerifiedOtp(dto.email, dto.otp);
+
+    const user = await this.usersService.findByEmail(dto.email);
+    if (!user) {
+      throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
+    }
+
+    const { token: resetGrant, expiresInMs } = await this.tokenService.createResetGrant(
+      user._id.toString(),
+      user.email,
+    );
+    
+    console.log(resetGrant);
+
+    return {
+      success: true,
+      resetGrant,
+      expiresIn: expiresInMs,
+      message: 'Xác thực OTP thành công',
+    };
   }
 
   /** 🔑 Đặt lại mật khẩu với token */
@@ -120,6 +145,27 @@ export class PasswordResetService {
     await this.usersService.updatePassword(dto.email, hashedPassword);
 
     await this.otpService.markUsed(String(otpRecord._id));
+
+    return { success: true, message: 'Đặt lại mật khẩu thành công' };
+  }
+
+  async resetPasswordWithGrant(dto: ResetPasswordWithGrantDto) {
+    const { email } = await this.tokenService.consumeResetGrant(dto.resetGrant);
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+
+    const isSameAsCurrentPassword = user.password
+      ? await this.passwordService.verifyPassword(dto.newPassword, user.password)
+      : false;
+    if (isSameAsCurrentPassword) {
+      throw new BadRequestException('Mật khẩu mới phải khác mật khẩu hiện tại');
+    }
+
+    const hashedPassword = await this.passwordService.hashPassword(dto.newPassword);
+    await this.usersService.updatePassword(email, hashedPassword);
+    await this.tokenService.invalidateAllTokensForUser(user._id.toString());
 
     return { success: true, message: 'Đặt lại mật khẩu thành công' };
   }

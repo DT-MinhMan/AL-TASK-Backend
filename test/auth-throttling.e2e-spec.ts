@@ -40,8 +40,14 @@ describe('Auth throttling (e2e)', () => {
 
   const passwordResetServiceMock = {
     requestPasswordReset: jest.fn().mockResolvedValue({ success: true, message: 'ok' }),
-    verifyOtp: jest.fn().mockResolvedValue({ success: true, message: 'ok' }),
+    verifyOtpAndIssueGrant: jest.fn().mockResolvedValue({
+      success: true,
+      message: 'ok',
+      resetGrant: 'reset-grant',
+      expiresIn: 600_000,
+    }),
     resetPasswordWithToken: jest.fn().mockResolvedValue({ success: true, message: 'ok' }),
+    resetPasswordWithGrant: jest.fn().mockResolvedValue({ success: true, message: 'ok' }),
     resetPasswordWithOtp: jest.fn().mockResolvedValue({ success: true, message: 'ok' }),
   };
 

@@ -18,3 +18,5 @@ values:
     value: ''
   - key: resetToken
     value: ''
+  - key: resetGrant
+    value: ''

@@ -2,7 +2,7 @@ $kind: http-request
 name: Logout
 method: POST
 url: '{{baseUrl}}auth/logout'
-order: 14000
+order: 15000
 auth:
   type: bearer
   credentials:

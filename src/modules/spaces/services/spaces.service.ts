@@ -21,30 +21,30 @@ export class SpacesService {
       key,
       ownerId: new Types.ObjectId(ownerId),
       workspaceId: new Types.ObjectId(workspaceId),
-      members: [],
+      members: [{ userId: new Types.ObjectId(ownerId), role: SPACE_ROLES.SPACE_ADMIN }],
       settings: {},
     });
 
     const saved = await space.save();
-    this.logger.log(`Space created: ${saved._id} with key: ${key}`);
+    this.logger.log(`Space đã được tạo: ${saved._id} với key: ${key}`);
     return saved;
   }
 
   async findById(id: string): Promise<SpaceDocument> {
     if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid space ID');
+      throw new BadRequestException('Định dạng ID space không hợp lệ');
     }
 
     const space = await this.spaceModel.findById(id).exec();
     if (!space) {
-      throw new NotFoundException(`Space with ID ${id} not found`);
+      throw new NotFoundException(`Không tìm thấy Space với ID ${id}`);
     }
     return space;
   }
 
   async findByWorkspace(workspaceId: string): Promise<SpaceDocument[]> {
     if (!Types.ObjectId.isValid(workspaceId)) {
-      throw new BadRequestException('Invalid workspace ID');
+      throw new BadRequestException('Định dạng ID workspace không hợp lệ');
     }
 
     return this.spaceModel
@@ -54,7 +54,7 @@ export class SpacesService {
 
   async findByUserId(userId: string): Promise<SpaceDocument[]> {
     if (!Types.ObjectId.isValid(userId)) {
-      throw new BadRequestException('Invalid user ID');
+      throw new BadRequestException('Định dạng ID người dùng không hợp lệ');
     }
 
     const userObjectId = new Types.ObjectId(userId);
@@ -86,21 +86,21 @@ export class SpacesService {
     }
 
     const updated = await space.save();
-    this.logger.log(`Space updated: ${id}`);
+    this.logger.log(`Space đã được cập nhật: ${id}`);
     return updated;
   }
 
   async delete(id: string): Promise<void> {
     const result = await this.spaceModel.findByIdAndDelete(id).exec();
     if (!result) {
-      throw new NotFoundException(`Space with ID ${id} not found`);
+      throw new NotFoundException(`Không tìm thấy Space với ID ${id}`);
     }
-    this.logger.log(`Space deleted: ${id}`);
+    this.logger.log(`Space đã được xóa: ${id}`);
   }
 
   async addMember(spaceId: string, userId: string, role: SpaceRole = SPACE_ROLES.MEMBER): Promise<SpaceDocument> {
     if (!Types.ObjectId.isValid(spaceId) || !Types.ObjectId.isValid(userId)) {
-      throw new BadRequestException('Invalid ID format');
+      throw new BadRequestException('Định dạng ID không hợp lệ');
     }
 
     const space = await this.findById(spaceId);
@@ -117,13 +117,13 @@ export class SpacesService {
     }
 
     const updated = await space.save();
-    this.logger.log(`Member ${userId} ${existingMember ? 'updated' : 'added'} to space ${spaceId}`);
+    this.logger.log(`Thành viên ${userId} đã được ${existingMember ? 'cập nhật' : 'thêm'} vào space ${spaceId}`);
     return updated;
   }
 
   async removeMember(spaceId: string, userId: string): Promise<SpaceDocument> {
     if (!Types.ObjectId.isValid(spaceId) || !Types.ObjectId.isValid(userId)) {
-      throw new BadRequestException('Invalid ID format');
+      throw new BadRequestException('Định dạng ID không hợp lệ');
     }
 
     const space = await this.findById(spaceId);
@@ -134,12 +134,12 @@ export class SpacesService {
     );
 
     if (memberIndex === -1) {
-      throw new NotFoundException(`User ${userId} is not a member of this space`);
+      throw new NotFoundException(`Người dùng ${userId} không phải là thành viên của space này`);
     }
 
     space.members.splice(memberIndex, 1);
     const updated = await space.save();
-    this.logger.log(`Member ${userId} removed from space ${spaceId}`);
+    this.logger.log(`Thành viên ${userId} đã bị xóa khỏi space ${spaceId}`);
     return updated;
   }
 
@@ -194,7 +194,7 @@ export class SpacesService {
       counter++;
 
       if (counter > 1000) {
-        throw new BadRequestException('Unable to generate unique key');
+        throw new BadRequestException('Không thể tạo key duy nhất');
       }
     }
 

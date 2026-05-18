@@ -5,12 +5,16 @@ import {
   BadRequestException,
   ForbiddenException,
   ConflictException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { WorkflowsService } from '../../workflows/services/workflows.service';
+import { UsersService } from '../../users/services/users.service';
 import { SPACE_ROLES, SpaceRole } from '../../../common/constants/space-role.constants';
+import { removeVietnameseTones } from '../../../common/utils/slug.utils';
 
 @Injectable()
 export class WorkspacesService {
@@ -19,6 +23,8 @@ export class WorkspacesService {
   constructor(
     private readonly workspacesRepository: WorkspacesRepository,
     private readonly workflowsService: WorkflowsService,
+    @Inject(forwardRef(() => UsersService))
+    private readonly usersService: UsersService,
   ) {}
 
   async create(userId: string, dto: CreateWorkspaceDto): Promise<any> {
@@ -27,7 +33,7 @@ export class WorkspacesService {
 
     const existingSlug = await this.workspacesRepository.findBySlug(slug);
     if (existingSlug) {
-      throw new BadRequestException(`Workspace with slug "${slug}" already exists`);
+      throw new BadRequestException(`Workspace với slug "${slug}" đã tồn tại`);
     }
 
     const workspace = await this.workspacesRepository.create({
@@ -37,7 +43,6 @@ export class WorkspacesService {
       key,
       type: dto.type || 'kanban',
       ownerId: new Types.ObjectId(userId),
-      leadId: new Types.ObjectId(userId),
       members: [
         { userId: new Types.ObjectId(userId), role: SPACE_ROLES.SPACE_ADMIN },
       ],
@@ -45,16 +50,16 @@ export class WorkspacesService {
       status: 'active',
     });
 
-    this.logger.log(`Workspace created: ${workspace._id} by user ${userId}`);
+    this.logger.log(`Workspace đã được tạo: ${workspace._id} bởi người dùng ${userId}`);
 
     try {
       await this.workflowsService.createDefaultWorkflow(workspace._id.toString());
-      this.logger.log(`Default workflow created for workspace ${workspace._id}`);
+      this.logger.log(`Workflow mặc định đã được tạo cho workspace ${workspace._id}`);
     } catch (error) {
       if (error instanceof ConflictException) {
-        this.logger.warn(`Workflow already exists for workspace ${workspace._id}, skipping creation`);
+        this.logger.warn(`Workflow đã tồn tại cho workspace ${workspace._id}, bỏ qua bước tạo`);
       } else {
-        this.logger.error(`Failed to create default workflow for workspace ${workspace._id}`, error);
+        this.logger.error(`Không thể tạo workflow mặc định cho workspace ${workspace._id}`, error);
       }
     }
 
@@ -68,7 +73,7 @@ export class WorkspacesService {
   async findById(id: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${id}" not found`);
+      throw new NotFoundException(`Không tìm thấy Workspace với ID "${id}"`);
     }
     return workspace;
   }
@@ -76,7 +81,7 @@ export class WorkspacesService {
   async findBySlug(slug: string): Promise<any> {
     const workspace = await this.workspacesRepository.findBySlug(slug);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with slug "${slug}" not found`);
+      throw new NotFoundException(`Không tìm thấy Workspace với slug "${slug}"`);
     }
     return workspace;
   }
@@ -88,7 +93,7 @@ export class WorkspacesService {
   async update(id: string, dto: UpdateWorkspaceDto): Promise<any> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${id}" not found`);
+      throw new NotFoundException(`Không tìm thấy Workspace với ID "${id}"`);
     }
 
     if (dto.name) {
@@ -111,33 +116,39 @@ export class WorkspacesService {
     }
 
     const updated = await this.workspacesRepository.update(id, workspace);
-    this.logger.log(`Workspace updated: ${id}`);
+    this.logger.log(`Workspace đã được cập nhật: ${id}`);
     return updated;
   }
 
   async delete(id: string): Promise<void> {
     const deleted = await this.workspacesRepository.delete(id);
     if (!deleted) {
-      throw new NotFoundException(`Workspace with ID "${id}" not found`);
+      throw new NotFoundException(`Không tìm thấy Workspace với ID "${id}"`);
     }
-    this.logger.log(`Workspace deleted: ${id}`);
+    this.logger.log(`Workspace đã được xóa: ${id}`);
   }
 
   async addMember(
     workspaceId: string,
-    userId: string,
+    email: string,
     role: SpaceRole,
   ): Promise<any> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${workspaceId}" not found`);
+      throw new NotFoundException(`Không tìm thấy Workspace với ID "${workspaceId}"`);
     }
 
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new NotFoundException(`Không tìm thấy người dùng với email "${email}"`);
+    }
+
+    const userId = user._id.toString();
     const isAlreadyMember = workspace.members.some(
       (m) => m.userId.toString() === userId,
     );
     if (isAlreadyMember) {
-      throw new BadRequestException(`User "${userId}" is already a member`);
+      throw new BadRequestException(`Người dùng với email "${email}" đã là thành viên`);
     }
 
     const updated = await this.workspacesRepository.addMember(
@@ -145,29 +156,29 @@ export class WorkspacesService {
       userId,
       role,
     );
-    this.logger.log(`Member ${userId} added to workspace ${workspaceId} with role ${role}`);
+    this.logger.log(`Đã thêm thành viên ${email} vào workspace ${workspaceId} với vai trò ${role}`);
     return updated;
   }
 
   async removeMember(workspaceId: string, userId: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${workspaceId}" not found`);
+      throw new NotFoundException(`Không tìm thấy Workspace với ID "${workspaceId}"`);
     }
 
     const member = workspace.members.find(
       (m) => m.userId.toString() === userId,
     );
     if (!member) {
-      throw new NotFoundException(`User "${userId}" is not a member`);
+      throw new NotFoundException(`Người dùng "${userId}" không phải là thành viên`);
     }
 
     if (workspace.ownerId.toString() === userId) {
-      throw new ForbiddenException('Cannot remove the owner from workspace');
+      throw new ForbiddenException('Không thể xóa chủ sở hữu khỏi workspace');
     }
 
     const updated = await this.workspacesRepository.removeMember(workspaceId, userId);
-    this.logger.log(`Member ${userId} removed from workspace ${workspaceId}`);
+    this.logger.log(`Đã xóa thành viên ${userId} khỏi workspace ${workspaceId}`);
     return updated;
   }
 
@@ -178,18 +189,18 @@ export class WorkspacesService {
   ): Promise<any> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${workspaceId}" not found`);
+      throw new NotFoundException(`Không tìm thấy Workspace với ID "${workspaceId}"`);
     }
 
     const member = workspace.members.find(
       (m) => m.userId.toString() === userId,
     );
     if (!member) {
-      throw new NotFoundException(`User "${userId}" is not a member`);
+      throw new NotFoundException(`Người dùng "${userId}" không phải là thành viên`);
     }
 
     if (workspace.ownerId.toString() === userId) {
-      throw new ForbiddenException('Cannot change the owner role');
+      throw new ForbiddenException('Không thể thay đổi vai trò của chủ sở hữu');
     }
 
     const updated = await this.workspacesRepository.updateMemberRole(
@@ -197,7 +208,7 @@ export class WorkspacesService {
       userId,
       role,
     );
-    this.logger.log(`Member ${userId} role updated to ${role} in workspace ${workspaceId}`);
+    this.logger.log(`Đã cập nhật vai trò của thành viên ${userId} thành ${role} trong workspace ${workspaceId}`);
     return updated;
   }
 
@@ -229,12 +240,7 @@ export class WorkspacesService {
   }
 
   async generateUniqueSlug(name: string): Promise<string> {
-    const baseSlug = name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .substring(0, 50);
+    const baseSlug = removeVietnameseTones(name).substring(0, 50);
 
     let slug = baseSlug;
     let counter = 1;

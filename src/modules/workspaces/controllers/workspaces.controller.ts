@@ -15,8 +15,9 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { WorkspacesService } from '../services/workspaces.service';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { SpaceRole } from '../../../common/constants/space-role.constants';
+import { NotFoundException } from '@nestjs/common';
+import { SPACE_ROLES, SpaceRole } from '../../../common/constants/space-role.constants';
+import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
 
 @ApiTags('Workspaces')
 @ApiBearerAuth()
@@ -32,6 +33,7 @@ export class WorkspacesController {
   }
 
   @Get(':id')
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Get workspace by ID' })
   async findOne(@Param('id') id: string) {
     const workspace = await this.workspacesService.findById(id);
@@ -45,82 +47,65 @@ export class WorkspacesController {
   @ApiOperation({ summary: 'Create a new workspace' })
   @HttpCode(HttpStatus.CREATED)
   async create(@Request() req: any, @Body() dto: CreateWorkspaceDto) {
+    console.log('📥 Nhận yêu cầu tạo Workspace:', JSON.stringify(dto));
     return this.workspacesService.create(req.user.userId, dto);
   }
 
   @Put(':id')
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.SPACE_ADMIN))
   @ApiOperation({ summary: 'Update workspace (owner/space admin only)' })
   async update(
-    @Request() req: any,
     @Param('id') id: string,
     @Body() dto: UpdateWorkspaceDto,
   ) {
-    const isAdmin = await this.workspacesService.isAdmin(id, req.user.userId);
-    if (!isAdmin) {
-      throw new ForbiddenException('Only owner or space admin can update workspace');
-    }
     return this.workspacesService.update(id, dto);
   }
 
   @Delete(':id')
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.SPACE_ADMIN))
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete workspace (owner only)' })
-  async remove(@Request() req: any, @Param('id') id: string) {
-    const isOwner = await this.workspacesService.isOwner(id, req.user.userId);
-    if (!isOwner) {
-      throw new ForbiddenException('Only owner can delete workspace');
-    }
+  async remove(@Param('id') id: string) {
     await this.workspacesService.delete(id);
   }
 
   @Get(':id/members')
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Get workspace members' })
   async getMembers(@Param('id') id: string) {
     return this.workspacesService.getMembers(id);
   }
 
   @Post(':id/members')
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.SPACE_ADMIN))
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Add member to workspace (owner/space admin only)' })
   async addMember(
-    @Request() req: any,
     @Param('id') id: string,
-    @Body() body: { userId: string; role: SpaceRole },
+    @Body() body: { email: string; role: SpaceRole },
   ) {
-    const isAdmin = await this.workspacesService.isAdmin(id, req.user.userId);
-    if (!isAdmin) {
-      throw new ForbiddenException('Only owner or space admin can add members');
-    }
-    return this.workspacesService.addMember(id, body.userId, body.role);
+    return this.workspacesService.addMember(id, body.email, body.role);
   }
 
   @Put(':id/members/:userId')
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.SPACE_ADMIN))
   @ApiOperation({ summary: 'Update member role (owner/space admin only)' })
   async updateMemberRole(
-    @Request() req: any,
     @Param('id') id: string,
     @Param('userId') userId: string,
     @Body() body: { role: SpaceRole },
   ) {
-    const isAdmin = await this.workspacesService.isAdmin(id, req.user.userId);
-    if (!isAdmin) {
-      throw new ForbiddenException('Only owner or space admin can update member roles');
-    }
     return this.workspacesService.updateMemberRole(id, userId, body.role);
   }
 
   @Delete(':id/members/:userId')
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.SPACE_ADMIN))
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove member from workspace (owner/space admin only)' })
   async removeMember(
-    @Request() req: any,
     @Param('id') id: string,
     @Param('userId') userId: string,
   ) {
-    const isAdmin = await this.workspacesService.isAdmin(id, req.user.userId);
-    if (!isAdmin) {
-      throw new ForbiddenException('Only owner or space admin can remove members');
-    }
     await this.workspacesService.removeMember(id, userId);
   }
 }

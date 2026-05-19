@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { MailerService } from '@nestjs-modules/mailer';
 import { Verify, VerifyDocument } from '../schemas/verify.schema';
 import { VerifyType } from '../dtos/verify.dto';
+import { randomInt } from 'crypto';
 
 @Injectable()
 export class VerifyService {
@@ -13,7 +14,7 @@ export class VerifyService {
   ) {}
 
   private generateCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return randomInt(100000, 1_000_000).toString();
   }
 
   async generateVerificationCode(email: string): Promise<string> {
@@ -21,6 +22,11 @@ export class VerifyService {
 
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
+
+    await this.verifyModel.updateMany(
+      { email, type: VerifyType.VERIFICATION, isUsed: false },
+      { isUsed: true },
+    );
 
     await this.verifyModel.create({
       email,

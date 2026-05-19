@@ -69,10 +69,30 @@ export class PasswordResetService {
     return GENERIC_RESPONSE;
   }
 
-  /** ✅ Xác thực OTP */
-  async verifyOtp(dto: VerifyOtpDto) {
-    await this.otpService.verifyOtp(dto.email, dto.otp);
-    return { success: true, message: 'Xác thực OTP thành công' };
+  /** Verify OTP, consume it immediately, then issue a one-time reset grant. */
+  async verifyOtpAndIssueGrant(dto: VerifyOtpDto): Promise<{
+    success: boolean;
+    resetGrant: string;
+    expiresIn: number;
+    message: string;
+  }> {
+    await this.otpService.consumeVerifiedOtp(dto.email, dto.otp);
+
+    const user = await this.usersService.findByEmail(dto.email);
+    if (!user) {
+      throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
+    }
+
+    const { token: resetGrant, expiresInMs } = await this.tokenService.createResetGrant(
+      user._id.toString(),
+      user.email,
+    );
+    return {
+      success: true,
+      resetGrant,
+      expiresIn: expiresInMs,
+      message: 'Xác thực OTP thành công',
+    };
   }
 
   /** 🔑 Đặt lại mật khẩu với token */

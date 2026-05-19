@@ -8,6 +8,7 @@ import { Types } from 'mongoose';
 import request = require('supertest');
 
 import { GLOBAL_ROLES } from '../src/common/constants/global-role.constants';
+import { USER_STATUSES } from '../src/common/constants/user-status.constants';
 import { AuthController } from '../src/modules/auth/controllers/auth.controller';
 import { JwtAuthGuard } from '../src/modules/auth/guards/jwt-auth.guard';
 import { Otp, OtpDocument } from '../src/modules/auth/schemas/otp.schema';
@@ -328,6 +329,48 @@ describe('Auth security flows (integration)', () => {
       }),
     ).rejects.toThrow();
     expect(usersService.updatePassword).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates registrations as pending verification and activates them after email verification', async () => {
+    const createdUser = {
+      _id: { toString: () => userId },
+      email: 'new-user@example.com',
+      role: GLOBAL_ROLES.USER,
+      status: USER_STATUSES.PENDING_VERIFICATION,
+    };
+    const usersService = {
+      findByEmail: jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(createdUser),
+      createUser: jest.fn().mockResolvedValue(createdUser),
+      updateUser: jest.fn().mockResolvedValue({ ...createdUser, status: USER_STATUSES.ACTIVE }),
+    } as unknown as UsersService;
+    const verifyService = {
+      sendVerificationEmail: jest.fn(),
+      verifyCode: jest.fn(),
+    } as unknown as VerifyService;
+    const authenticationService = new AuthenticationService(
+      usersService,
+      new PasswordService(),
+      tokenService,
+      verifyService,
+    );
+
+    await authenticationService.register({
+      email: 'new-user@example.com',
+      password: 'StrongPassword1!',
+    });
+    await authenticationService.verifyRegistrationEmail('new-user@example.com', '123456');
+
+    expect(usersService.createUser).toHaveBeenCalledWith({
+      email: 'new-user@example.com',
+      password: 'StrongPassword1!',
+      role: GLOBAL_ROLES.USER,
+      status: USER_STATUSES.PENDING_VERIFICATION,
+    });
+    expect(verifyService.sendVerificationEmail).toHaveBeenCalledWith('new-user@example.com');
+    expect(usersService.updateUser).toHaveBeenCalledWith(userId, { status: USER_STATUSES.ACTIVE });
   });
 });
 

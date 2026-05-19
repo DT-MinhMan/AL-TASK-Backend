@@ -89,9 +89,6 @@ export class PasswordResetService {
       user._id.toString(),
       user.email,
     );
-    
-    console.log(resetGrant);
-
     return {
       success: true,
       resetGrant,

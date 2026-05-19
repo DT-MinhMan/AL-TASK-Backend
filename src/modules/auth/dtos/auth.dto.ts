@@ -66,3 +66,9 @@ export class VerifyEmailDto {
   @IsNotEmpty({ message: 'Mã xác thực không được để trống.' })
   code!: string;
 }
+
+export class ResendVerificationDto {
+  @IsEmail({}, { message: 'Email khong hop le.' })
+  @IsNotEmpty({ message: 'Email khong duoc de trong.' })
+  email!: string;
+}

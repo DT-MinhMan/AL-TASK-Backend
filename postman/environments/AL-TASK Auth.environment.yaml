@@ -20,3 +20,7 @@ values:
     value: ''
   - key: resetGrant
     value: ''
+  - key: testemailverification
+    value: ''
+  - key: passEmailVerification
+    value: ''

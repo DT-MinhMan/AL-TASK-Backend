@@ -8,6 +8,7 @@ import { Types } from 'mongoose';
 import request = require('supertest');
 
 import { GLOBAL_ROLES } from '../src/common/constants/global-role.constants';
+import { USER_STATUSES } from '../src/common/constants/user-status.constants';
 import { AuthController } from '../src/modules/auth/controllers/auth.controller';
 import { JwtAuthGuard } from '../src/modules/auth/guards/jwt-auth.guard';
 import { Otp, OtpDocument } from '../src/modules/auth/schemas/otp.schema';
@@ -18,6 +19,9 @@ import { TokenService } from '../src/modules/auth/services/token.service';
 import { TOKEN_TYPES } from '../src/modules/auth/constants/token.constants';
 import { AuthenticationService } from '../src/modules/auth/services/authentication.service';
 import { UsersService } from '../src/modules/users/services/users.service';
+import { PasswordResetService } from '../src/modules/auth/services/password-reset.service';
+import { PasswordService } from '../src/modules/auth/services/password.service';
+import { VerifyService } from '../src/modules/verify/services/verify.service';
 
 type TokenRecord = {
   _id: Types.ObjectId;
@@ -164,6 +168,24 @@ class InMemoryOtpModel {
       Object.assign(record, update);
     }
   }
+
+  async findOneAndUpdate(
+    query: { _id: Types.ObjectId; isUsed: boolean; expiresAt: { $gt: Date } },
+    update: { $set: Partial<OtpRecord> },
+  ): Promise<OtpRecord | null> {
+    const record = this.records.find(
+      (item) =>
+        String(item._id) === String(query._id) &&
+        item.isUsed === query.isUsed &&
+        item.expiresAt > query.expiresAt.$gt,
+    );
+    if (!record) {
+      return null;
+    }
+    const before = { ...record };
+    Object.assign(record, update.$set);
+    return before;
+  }
 }
 
 describe('Auth security flows (integration)', () => {
@@ -175,6 +197,7 @@ describe('Auth security flows (integration)', () => {
         JWT_SECRET: 'jwt-secret-that-is-long-enough-for-tests',
         REFRESH_TOKEN_SECRET: 'refresh-secret-that-is-long-enough',
         REFRESH_TOKEN_EXPIRES_IN: '7d',
+        PASSWORD_RESET_SECRET: 'password-reset-secret-that-is-long-enough',
         NODE_ENV: 'test',
       };
       return values[key];
@@ -257,6 +280,98 @@ describe('Auth security flows (integration)', () => {
     await otpService.createOtp('expired@example.com', '654321', -1);
     await expect(otpService.verifyOtp('expired@example.com', '654321')).rejects.toThrow();
   });
+
+  it('consumes OTP during verification and issues a one-time reset grant', async () => {
+    const otpModel = new InMemoryOtpModel();
+    const otpService = new OtpService(otpModel as unknown as never);
+    const hashedPassword = await new PasswordService().hashPassword('OldPassword1!');
+    const usersService = {
+      findByEmail: jest.fn().mockResolvedValue({
+        _id: { toString: () => userId },
+        email: 'user@example.com',
+        password: hashedPassword,
+      }),
+      updatePassword: jest.fn().mockResolvedValue({ success: true }),
+    } as unknown as UsersService;
+    const passwordResetService = new PasswordResetService(
+      usersService,
+      jwtService,
+      configService as unknown as ConfigService,
+      tokenService,
+      otpService,
+      new PasswordService(),
+      {} as VerifyService,
+    );
+
+    await otpService.createOtp('user@example.com', '123456', 60_000);
+    const grant = await passwordResetService.verifyOtpAndIssueGrant({
+      email: 'user@example.com',
+      otp: '123456',
+    });
+
+    expect(grant.resetGrant).toBeDefined();
+    expect(await otpService.getLatestActiveOtp('user@example.com')).toBeNull();
+    await expect(
+      passwordResetService.verifyOtpAndIssueGrant({
+        email: 'user@example.com',
+        otp: '123456',
+      }),
+    ).rejects.toThrow();
+
+    await passwordResetService.resetPasswordWithGrant({
+      resetGrant: grant.resetGrant,
+      newPassword: 'NewPassword1!',
+    });
+    await expect(
+      passwordResetService.resetPasswordWithGrant({
+        resetGrant: grant.resetGrant,
+        newPassword: 'AnotherPassword1!',
+      }),
+    ).rejects.toThrow();
+    expect(usersService.updatePassword).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates registrations as pending verification and activates them after email verification', async () => {
+    const createdUser = {
+      _id: { toString: () => userId },
+      email: 'new-user@example.com',
+      role: GLOBAL_ROLES.USER,
+      status: USER_STATUSES.PENDING_VERIFICATION,
+    };
+    const usersService = {
+      findByEmail: jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(createdUser),
+      createUser: jest.fn().mockResolvedValue(createdUser),
+      updateUser: jest.fn().mockResolvedValue({ ...createdUser, status: USER_STATUSES.ACTIVE }),
+    } as unknown as UsersService;
+    const verifyService = {
+      sendVerificationEmail: jest.fn(),
+      verifyCode: jest.fn(),
+    } as unknown as VerifyService;
+    const authenticationService = new AuthenticationService(
+      usersService,
+      new PasswordService(),
+      tokenService,
+      verifyService,
+    );
+
+    await authenticationService.register({
+      email: 'new-user@example.com',
+      password: 'StrongPassword1!',
+    });
+    await authenticationService.verifyRegistrationEmail('new-user@example.com', '123456');
+
+    expect(usersService.createUser).toHaveBeenCalledWith({
+      email: 'new-user@example.com',
+      password: 'StrongPassword1!',
+      role: GLOBAL_ROLES.USER,
+      status: USER_STATUSES.PENDING_VERIFICATION,
+    });
+    expect(verifyService.sendVerificationEmail).toHaveBeenCalledWith('new-user@example.com');
+    expect(usersService.updateUser).toHaveBeenCalledWith(userId, { status: USER_STATUSES.ACTIVE });
+  });
 });
 
 describe('Auth logout revoke path (e2e)', () => {
@@ -284,6 +399,7 @@ describe('Auth logout revoke path (e2e)', () => {
                 JWT_SECRET: 'jwt-secret-that-is-long-enough-for-tests',
                 REFRESH_TOKEN_SECRET: 'refresh-secret-that-is-long-enough',
                 REFRESH_TOKEN_EXPIRES_IN: '7d',
+                PASSWORD_RESET_SECRET: 'password-reset-secret-that-is-long-enough',
                 NODE_ENV: 'test',
               };
               return values[key];

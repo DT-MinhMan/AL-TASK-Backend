@@ -42,6 +42,17 @@ export class ResetPasswordWithOtpDto {
   newPassword!: string;
 }
 
+export class ResetPasswordWithGrantDto {
+  @IsString({ message: 'Reset grant phải là chuỗi ký tự.' })
+  @IsNotEmpty({ message: 'Reset grant không được để trống.' })
+  resetGrant!: string;
+
+  @IsString({ message: 'Mật khẩu mới phải là chuỗi ký tự.' })
+  @IsNotEmpty({ message: 'Mật khẩu mới không được để trống.' })
+  @Matches(PASSWORD_POLICY.pattern, { message: PASSWORD_POLICY.message })
+  newPassword!: string;
+}
+
 export class VerifyOtpDto {
   @IsEmail({}, { message: 'Email không hợp lệ.' })
   @IsNotEmpty({ message: 'Email không được để trống.' })

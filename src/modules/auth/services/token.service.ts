@@ -1,5 +1,6 @@
 // src/modules/auth/services/token.service.ts
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -16,7 +17,10 @@ import { AuditLogService } from './audit-log.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
 import { SECURITY_EVENT_TYPES } from '../constants/audit.constants';
 import { AUTH_CONSTANTS } from '../constants/auth.constants';
-import { RefreshJwtPayload } from '../types/jwt-payload.type';
+import {
+  PasswordResetGrantJwtPayload,
+  RefreshJwtPayload,
+} from '../types/jwt-payload.type';
 
 @Injectable()
 export class TokenService {
@@ -174,6 +178,75 @@ export class TokenService {
       type: TOKEN_TYPES.PASSWORD_RESET,
       expiresAt: new Date(Date.now() + AUTH_CONSTANTS.PASSWORD_RESET_EXPIRES_MS),
     });
+  }
+
+  async createResetGrant(
+    userId: string,
+    email: string,
+  ): Promise<{ token: string; expiresInMs: number }> {
+    const expiresInMs = 10 * 60 * 1000;
+    const token = this.jwtService.sign(
+      {
+        email,
+        purpose: 'reset-password',
+        type: TOKEN_TYPES.PASSWORD_RESET_GRANT,
+      },
+      {
+        secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
+        expiresIn: '10m',
+      },
+    );
+
+    await this.tokenModel.create({
+      userId,
+      email,
+      token: this.hashToken(token),
+      deviceInfo: 'Password Reset Grant',
+      status: true,
+      type: TOKEN_TYPES.PASSWORD_RESET_GRANT,
+      expiresAt: new Date(Date.now() + expiresInMs),
+    });
+
+    return { token, expiresInMs };
+  }
+
+  async consumeResetGrant(resetGrant: string): Promise<{ email: string }> {
+    let payload: PasswordResetGrantJwtPayload;
+    try {
+      payload = this.jwtService.verify<PasswordResetGrantJwtPayload>(resetGrant, {
+        secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
+      });
+    } catch (error) {
+      const err = error as Error;
+      if (err.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Reset grant token đã hết hạn');
+      }
+      throw new UnauthorizedException('Reset grant token không hợp lệ');
+    }
+
+    if (
+      payload.purpose !== 'reset-password' ||
+      payload.type !== TOKEN_TYPES.PASSWORD_RESET_GRANT
+    ) {
+      throw new BadRequestException('Reset grant token không hợp lệ');
+    }
+
+    const consumed = await this.tokenModel.findOneAndUpdate(
+      {
+        token: this.hashToken(resetGrant),
+        status: true,
+        type: TOKEN_TYPES.PASSWORD_RESET_GRANT,
+        expiresAt: { $gt: new Date() },
+      },
+      { $set: { status: false } },
+      { new: false },
+    );
+
+    if (!consumed) {
+      throw new UnauthorizedException('Reset grant token không hợp lệ hoặc đã được sử dụng');
+    }
+
+    return { email: payload.email };
   }
 
   async findActivePasswordResetToken(resetToken: string): Promise<TokenDocument | null> {

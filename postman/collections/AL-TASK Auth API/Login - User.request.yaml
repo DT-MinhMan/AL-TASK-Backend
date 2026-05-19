@@ -34,4 +34,4 @@ scripts:
         pm.expect(setCookie).to.include("SameSite");
       });
     language: text/javascript
-order: 3536
+order: 3000

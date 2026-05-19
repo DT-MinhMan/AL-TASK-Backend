@@ -8,7 +8,13 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { PasswordResetService } from '../services/password-reset.service';
-import { RequestPasswordResetDto, ResetPasswordWithTokenDto, ResetPasswordWithOtpDto, VerifyOtpDto } from '../dtos/password-reset.dto';
+import {
+  RequestPasswordResetDto,
+  ResetPasswordWithGrantDto,
+  ResetPasswordWithTokenDto,
+  ResetPasswordWithOtpDto,
+  VerifyOtpDto,
+} from '../dtos/password-reset.dto';
 import { Request as ExpressRequest } from 'express';
 import { AuditLogService } from '../services/audit-log.service';
 
@@ -38,19 +44,20 @@ export class PasswordController {
   }
 
   // 🔢 Verify OTP — throttle: 5/min (chống brute-force OTP)
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  // @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('verify-otp')
   async verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: ExpressRequest) {
     try {
-      const result = await this.passwordResetService.verifyOtp(dto);
+      const result = await this.passwordResetService.verifyOtpAndIssueGrant(dto);
       this.auditLogService.logRequest(req, {
-        type: 'OTP_VERIFIED',
+        type: 'OTP_VERIFIED_GRANT_ISSUED',
         severity: 'INFO',
+        metadata: { expiresIn: result.expiresIn },
       });
       return result;
     } catch (error) {
       this.auditLogService.logRequest(req, {
-        type: 'OTP_FAILED',
+        type: 'OTP_VERIFY_FAILED',
         severity: 'WARN',
       });
       throw error;
@@ -82,7 +89,35 @@ export class PasswordController {
     }
   }
 
+  // Grant-based reset is the primary OTP reset flow. The grant is one-time and
+  // short-lived so the OTP itself is never reused after verification.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('reset-password')
+  async resetPasswordWithGrant(
+    @Body() dto: ResetPasswordWithGrantDto,
+    @Req() req: ExpressRequest,
+  ) {
+    try {
+      const result = await this.passwordResetService.resetPasswordWithGrant(dto);
+      this.auditLogService.logRequest(req, {
+        type: 'PASSWORD_RESET_COMPLETED',
+        severity: 'INFO',
+        metadata: { method: 'grant-token' },
+      });
+      return result;
+    } catch (error) {
+      this.auditLogService.logRequest(req, {
+        type: 'PASSWORD_RESET_FAILED',
+        severity: 'WARN',
+        metadata: { method: 'grant-token', reason: (error as Error).message },
+      });
+      throw error;
+    }
+  }
+
   // 🔒 Reset password với OTP
+  // Deprecated: kept temporarily for older clients. New clients should use
+  // /auth/verify-otp followed by /auth/reset-password.
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('reset-password/otp')
   async resetPasswordWithOtp(

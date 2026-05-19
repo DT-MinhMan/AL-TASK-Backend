@@ -2,7 +2,7 @@ $kind: http-request
 name: Get All Users
 method: GET
 url: '{{baseUrl}}auth/users'
-order: 15000
+order: 17000
 auth:
   type: bearer
   credentials:

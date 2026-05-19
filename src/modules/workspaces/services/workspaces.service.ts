@@ -42,6 +42,7 @@ export class WorkspacesService {
       slug,
       key,
       type: dto.type || 'kanban',
+      access: dto.access || 'open',
       ownerId: new Types.ObjectId(userId),
       members: [
         { userId: new Types.ObjectId(userId), role: SPACE_ROLES.SPACE_ADMIN },
@@ -113,6 +114,9 @@ export class WorkspacesService {
     }
     if (dto.status) {
       workspace.status = dto.status;
+    }
+    if (dto.access) {
+      workspace.access = dto.access;
     }
 
     const updated = await this.workspacesRepository.update(id, workspace);
